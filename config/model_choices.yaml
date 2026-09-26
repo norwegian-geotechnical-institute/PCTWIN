@@ -1,0 +1,30 @@
+#just an example for now, we will need to update this as we go
+# Modelling choices for the PTHA (PS sources only for now).
+# Weights are still to be decided and are left empty.
+
+epistemic:            # logic-tree branches, each with a weight
+  mfd_type:
+    truncated_pareto: null
+    tapered_pareto: null
+  b_value:            # including constraints from geodynamic modelling
+  mmax:               # global priors with Bayesian fitting
+  segmentation:
+    combined: null
+    split: null
+  scaling_relation:
+    strasser_2010: null
+    thingbaijam_2017: null
+  rigidity:
+    makran: [variable, homogeneous]
+    sunda: [variable_1, variable_2, variable_3, homogeneous]
+
+aleatory:             # sampled within each branch
+  n_slip_realisations: 10
+  n_scaling_realisations: 10
+  depth:
+    PS: fixed
+  focal_mechanism:    # to be decided
+
+magnitude_bins:       # non-uniform bins
+  makran: {mw_min: 6.5, mw_max: 9.02, n_bins: 18}
+  sunda: {mw_min: 6.8, mw_max: 9.5, n_bins: 32}

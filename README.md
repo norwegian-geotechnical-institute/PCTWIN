@@ -35,3 +35,18 @@ Epistemic uncertainty is handled through logic-tree branches, while aleatory var
 - Focal mechanism and depth
 
 Scenario rates are computed by distributing the annual rate of each magnitude bin over the aleatory realisations (slip, scaling, etc.) within each logic-tree branch.
+
+## Repository structure
+
+```
+config/
+    model_choices.yaml    epistemic branches, aleatory settings and Mw bins
+pctwin_ptha/
+    mfd/                  MFDs and annual rates per Mw bin
+    logic_tree/           branch combinations and weights
+    events/               aleatory event generation
+    catalogue/            scenario catalogue and scenario rates
+notebooks/                exploratory work and checks
+```
+
+Suggested folders for the later steps: initial conditions, propagation, hazard aggregation. We can add them later as deem appropriate.
