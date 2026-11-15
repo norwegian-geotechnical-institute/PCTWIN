@@ -1,0 +1,60 @@
+# Zone and segment parameters. Values are those of Table 1 in
+# the source characterisation document of the work package (columns "Our ..."), except the coupling of Arakan and Java (see the
+# comment above the Sunda segments).
+# null = not yet available. Entries needed by a step are checked when that step runs.
+#
+# b            catalogue estimate of the b-value
+# mc           completeness magnitude of the catalogue
+# mc_start_year  first year from which the catalogue is taken as complete above mc. Not in Table 1; set from the
+#              event counts per five years. Kept for the record only: the seismic rates are not anchored at mc.
+# seismic_anchor  the a-value of the seismic branches is set by the observed rate of events at or above this
+#              magnitude since start_year (decision 20). The rate at mc since 2000 is not used because that
+#              period holds the 2004-2012 cluster and gives three to six times the long-term rate of large events.
+# coupling     preferred coupling (low and high are derived in logic_tree.yaml)
+# convergence  plate convergence rate, mm/yr
+# mmax_area    Mmax from the area of the zone or segment
+# mmax_observed  largest observed event; null = taken from the catalogue in step B3
+# ref_cs       coupled convergence (coupling x convergence, mm/yr) of Davies et al. (2018): low, preferred, high.
+#              Used only to compare with our loading in the checks of step B2.
+
+sunda:
+  code: sun
+  rigidity_pa: 3.0e+10
+  fractions_csv: Sunda_rupture_fractions.csv
+  triangles: Sunda_triangles.txt
+  catalogue: Seismicity Distribution_Sunda.csv
+  catalogue_end_year: 2025
+  arc_centre: [108.0, 12.0]      # lon, lat of a point on the concave side of the arc; only used to put the
+                                 # trench in order for plots of rate along the trench
+  seismic_anchor: {magnitude: 6.35, start_year: 1906}
+  whole_zone:
+    b: 0.860
+    mc: 4.5
+    mc_start_year: 2000
+    mmax_area: 9.5            # decision 16
+    mmax_observed: null
+  # Coupling of Arakan and Java (decision 21): 0.45 and 0.176, so that coupling x convergence equals the preferred
+  # coupled convergence of Davies et al. (2018) (8.1 and 12 mm/yr, ref_cs). The values of Table 1 (1.00 and 0.76)
+  # gave several times more moderate events in these two segments than the catalogue holds; they are kept as a
+  # sensitivity test:  python scripts/sens_coupling.py sunda Java=0.76 Arakan=1.0
+  segments:                   # order = seg_1 .. seg_5 in the fractions file
+    - {name: Arakan,       b: 0.866, mc: 4.1, mc_start_year: 2000, coupling: 0.45, convergence: 18.0, mmax_area: 9.4, mmax_observed: null, ref_cs: [4.9, 8.1, 11.0]}
+    - {name: Aceh-Andaman, b: 0.876, mc: 4.3, mc_start_year: 2000, coupling: 0.70, convergence: 25.0, mmax_area: 9.5, mmax_observed: null, ref_cs: [15.0, 18.0, 20.0]}
+    - {name: Sumatra,      b: 0.787, mc: 4.4, mc_start_year: 2000, coupling: 0.80, convergence: 39.0, mmax_area: 9.4, mmax_observed: null, ref_cs: [25.0, 29.0, 32.0]}
+    - {name: Java,         b: 0.881, mc: 4.7, mc_start_year: 2000, coupling: 0.176, convergence: 68.0, mmax_area: 9.3, mmax_observed: null, ref_cs: [5.8, 12.0, 41.0]}
+    - {name: Sumba,        b: 1.028, mc: 5.2, mc_start_year: 1975, coupling: 0.20, convergence: 67.0, mmax_area: 9.2, mmax_observed: null, ref_cs: null}
+
+makran:
+  code: mak
+  rigidity_pa: 3.0e+10
+  fractions_csv: Makran_rupture_fractions.csv
+  triangles: null             # mesh is available only as a docx; text copy to be placed in the data folder
+  catalogue: null             # not in the project folder
+  whole_zone:
+    b: 0.87
+    mc: 4.5
+    mmax_area: null
+    mmax_observed: null
+  segments:                   # order = seg_1 (East), seg_2 (West) in the fractions file
+    - {name: East, b: 0.67, mc: 4.3, coupling: null, convergence: 30.0, mmax_area: null, mmax_observed: null}
+    - {name: West, b: 1.01, mc: 4.5, coupling: null, convergence: 27.0, mmax_area: null, mmax_observed: null}

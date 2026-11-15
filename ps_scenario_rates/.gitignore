@@ -1,0 +1,11 @@
+# the rupture fractions file is 135 MB, above the size GitHub accepts for one file; obtain it separately (data/README.md)
+data/Rupture_fractions*.zip
+# check reports are written fresh by every run
+checks/
+# large tables that the steps rewrite and nothing outside the steps needs
+products/B2_budget/loading_*.csv
+products/B3_catalogue/catalogue_*.csv
+products/B4_bin_rates/bin_rates_*.csv
+products/B5_shares/positions_*.csv
+products/B7_rates/position_rates_*.csv
+__pycache__/

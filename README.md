@@ -2,51 +2,53 @@
 
 Code for the probabilistic tsunami hazard assessment (PTHA) in PCTWIN WP1.
 
-This repository brings together the pieces being developed across the work package (source models, magnitude-frequency distributions, rupture realisations, tsunami propagation) into one PTHA workflow. The first version covers predominant subduction (PS) sources only, for the Makran and Sunda subduction zones. Background seismicity (BS) will be added later.
+The repository brings the pieces developed across the work package (source models, magnitude-frequency distributions, rupture realisations, tsunami propagation) into one PTHA workflow. The first version covers predominant subduction (PS) sources for the Sunda and Makran subduction zones. Background seismicity (BS) will be added later.
 
-The implementation is still in an early stage, so expect things to move around.
+## Where things stand
 
-## Workflow
+| Step of the workflow | Status | Where |
+|---|---|---|
+| 1. Source model and scenario set | Done by the scenario provider (meshes, scenarios, rupture fractions) | inputs, see `ps_scenario_rates/data/README.md` |
+| 2. Epistemic model / logic tree | Sunda: first run done | `ps_scenario_rates/` |
+| 3. MFD and annual rates per magnitude bin | Sunda: first run done | `ps_scenario_rates/` |
+| 4. Rates of the aleatory realisations (position, scaling sample, slip) | Sunda: first run done | `ps_scenario_rates/` |
+| 5. Scenario catalogue with annual rates on every branch | Sunda: first run done | `ps_scenario_rates/products/` |
+| 6. Unit-source combination / initial conditions | not in this repository yet | |
+| 7. Tsunami propagation (Tsunami-HySEA) | not in this repository yet | |
+| 8. Intensities at points of interest and inundation | not in this repository yet | |
+| 9. Hazard aggregation | to do; how to use the rates is in `ps_scenario_rates/docs/guide.md`, section 2 | |
 
-The PTHA is built up in the following steps:
+Makran has not been run yet; what it needs is listed in the guide.
 
-1. Source model
-2. Epistemic model / logic tree
-3. MFD and annual rates per magnitude bin
-4. Aleatory event generation
-5. Scenario catalogue
-6. Unit-source combination / initial conditions
-7. Tsunami propagation (Tsunami-HySEA)
-8. Intensities at points of interest (POIs) and inundation
-9. Hazard aggregation
+## PS scenario rates
 
-## Modelling choices
+`ps_scenario_rates/` gives every PS scenario an annual rate on each of the 480 branches of the logic tree. It is self-contained: its own configuration, code, unit tests, result tables and figures.
 
-Epistemic uncertainty is handled through logic-tree branches, while aleatory variability is sampled during event generation. The main components currently considered are:
+- Start with `ps_scenario_rates/README.md` (how to use the rates, how to run).
+- The method, a table of every step with its limitations and planned improvements, the decisions taken, the results and the open points are in `ps_scenario_rates/docs/guide.md`.
 
-- MFD type: truncated and tapered Pareto
-- b-value, including constraints from geodynamic modelling
-- Mmax: global priors with Bayesian fitting
-- Non-uniform magnitude bins (Makran Mw 6.5-9.02, Sunda Mw 6.8-9.5)
-- Segmentation: combined and split
-- Scaling relations: Strasser et al. (2010) and Thingbaijam et al. (2017), with scaling-law uncertainty
-- Rigidity: depth-variable and homogeneous profiles
-- Stochastic slip realisations
-- Focal mechanism and depth
+Modelling choices in the first run, all set in `ps_scenario_rates/config/`:
 
-Scenario rates are computed by distributing the annual rate of each magnitude bin over the aleatory realisations (slip, scaling, etc.) within each logic-tree branch.
+- Rate source: seismic (catalogue) and geodynamic (moment budget from convergence and coupling)
+- Segmentation: unconstrained (whole zone) and segmented
+- MFD form: truncated Gutenberg-Richter and tapered Pareto
+- b-value: ten values from 0.7 to 1.2
+- Mmax: largest observed, area limit, and their mean
+- Coupling: three levels (geodynamic branches)
+- Pooled inside each magnitude bin, not branches: scaling relation (Strasser et al. 2010; Thingbaijam et al. 2017) with its samples, slip realisations, rigidity model (homogeneous only for now)
+- Magnitude bins: those of the scenario set (Sunda: 31 bins, Mw 6.5 to 9.5)
 
 ## Repository structure
 
 ```
-config/
-    model_choices.yaml    epistemic branches, aleatory settings and Mw bins
-pctwin_ptha/
-    mfd/                  MFDs and annual rates per Mw bin
-    logic_tree/           branch combinations and weights
-    events/               aleatory event generation
-    catalogue/            scenario catalogue and scenario rates
-notebooks/                exploratory work and checks
+ps_scenario_rates/
+    config/       logic tree and zone parameters
+    ptha_rates/   the code
+    scripts/      one run script per step, run_all.py, sensitivity test
+    tests/        unit tests
+    products/     result tables and figures of every step
+    data/         input files
+    docs/         guide.md and figures
 ```
 
-Suggested folders for the later steps: initial conditions, propagation, hazard aggregation. We can add them later as deem appropriate.
+Folders for the later steps (initial conditions, propagation, hazard aggregation) are to be added as that work comes in.

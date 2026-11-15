@@ -1,0 +1,53 @@
+# Logic tree for the PS scenario rates (Sunda and Makran).
+# Every modelling choice of the rate calculation is set here or in zones.yaml.
+# Decision numbers refer to the decision log in docs/guide.md.
+
+levels:                       # epistemic levels; weights within a level sum to 1
+  rate_source:                # decision 1 (open): equal until decided
+    seismic: 0.5
+    geodynamic: 0.5
+  segmentation:
+    unconstrained: 0.5
+    segmented: 0.5
+  mfd_form:
+    truncated_gr: 0.5
+    tapered_pareto: 0.5
+  b_value:                    # decision 2
+    n: 10
+    min: 0.7
+    max: 1.2
+    weights: linear           # highest at the catalogue b, falling linearly away from it
+  mmax:                       # weights from Davies et al. (2018)
+    observed: 0.10
+    area_limit: 0.45
+    mean: 0.45
+  coupling:                   # decision 3; geodynamic branches only; weights open, equal until decided
+    offset: 0.2
+    floor: 0.1
+    ceiling: 1.0
+    weights:
+      low: 0.3333333333333333
+      preferred: 0.3333333333333334
+      high: 0.3333333333333333
+
+event_tree:                   # pooled inside each magnitude bin, not logic tree levels (decision 4)
+  rigidity_model:             # decision 14: first run uses the homogeneous model only
+    "00": 1.0
+    "01": 0.0
+    "02": 0.0
+    "03": 0.0
+  scaling_law:                # 01 Strasser et al. (2010), 02 Thingbaijam et al. (2017)
+    "01": 0.5
+    "02": 0.5
+  scaling_sample_00_counts_as_sample: true   # decision 10
+
+options:
+  bayesian_update: false              # decision 13
+  crossing_penalty: 1.0               # 1 = no penalty on boundary-crossing ruptures
+  bin_edges: midpoints                # decision 5; stand-in until edges are supplied
+  convergence_projection: none        # decision 6; none = convergence used as given
+  tapered_corner: mmax                # decision 7; corner magnitude = Mmax alternative, no hard limit
+  tapered_tail: truncate_at_last_bin  # rate above the last bin has no scenario. truncate_at_last_bin: the budget is
+                                      # balanced over the modelled bins; not_modelled: the moment above the last bin is lost
+  xi_min_magnitude: first_bin_lower_edge   # decision 8
+  footprints: segment_fraction_approximation   # decision 9

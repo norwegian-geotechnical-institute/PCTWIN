@@ -2,10 +2,9 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 
-# data and model outputs
+# large model outputs
 *.nc
 *.h5
 *.hdf5
 *.grd
-data/
 outputs/

@@ -1,0 +1,6 @@
+segment,seismic_per_yr,seismic_n_ge_7.5,geodynamic_present_per_yr,geodynamic_present_n_ge_7.5,geodynamic_test_per_yr,geodynamic_test_n_ge_7.5
+Arakan,0.02629,0.3547,0.291,2.653,0.6007,5.414
+Aceh-Andaman,0.1768,2.404,0.3892,4.32,0.39,4.361
+Sumatra,0.5943,7.616,0.8326,9.017,0.8383,9.231
+Java,0.1945,2.558,0.436,4.643,1.505,15.57
+Sumba,0.06779,0.944,0.3056,3.468,0.312,3.701
