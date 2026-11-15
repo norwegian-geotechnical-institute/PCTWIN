@@ -5,7 +5,7 @@ Writes products/B7_rates/ and checks/B7_rates/.
 
 Products per zone:
   scenario_rates_<zone>.npz        one value per scenario, in the order of products/B1_inputs/scenarios_<zone>.npz:
-                                   the parts of the name, position, split, and the weighted mean annual rate over
+                                   the version, the parts of the name, position, split, and the weighted mean annual rate over
                                    all branches and over four groups of branches
   scenario_mean_rates_<zone>.csv.gz  scenario name and mean annual rate, all scenarios
   position_rates_<zone>.csv        mean annual rate of every rupture position
@@ -16,12 +16,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import pandas as pd
-from ptha_rates import PRODUCTS, binrates, config, rates
+from ptha_rates import PRODUCTS, __version__, binrates, config, rates
 from ptha_rates.report import CheckReport
 
 README = """# Scenario rates ({zone})
 
-Annual rates of the PS scenarios of rigidity model 00 (homogeneous) on the {n_branch} branches of the logic tree.
+Version {version}. Annual rates of the PS scenarios of rigidity model 00 (homogeneous) on the {n_branch} branches of the logic tree.
 Scenarios of the other rigidity models have no rate in this run.
 
 ## Mean rates
@@ -88,15 +88,15 @@ def main(zones):
         cols = {k: scen[k] for k in ("rig", "mw", "scal", "sreal", "tri", "slip", "bin", "position", "split")}
         for g, v in PM.items():
             cols["rate_mean" if g == "all" else f"rate_mean_{g}"] = v[scen["position"]] * scen["split"]
-        np.savez_compressed(os.path.join(out, f"scenario_rates_{zone}.npz"), **cols)
+        np.savez_compressed(os.path.join(out, f"scenario_rates_{zone}.npz"), version=np.array(__version__), **cols)
         pd.DataFrame({"scenario": rates.scenario_names(z["code"], scen), "rate_per_yr": sr}).to_csv(
-            os.path.join(out, f"scenario_mean_rates_{zone}.csv.gz"), index=False, float_format="%.6e", compression="gzip")
+            os.path.join(out, f"scenario_mean_rates_{zone}.csv.gz"), index=False, float_format="%.6e", compression={"method": "gzip", "mtime": 0})   # mtime 0: the file is identical from run to run
         pp = pos[["position", "rig", "scal", "bin", "tri", "n_scenarios"]].copy(); pp["mw_centre"] = bins.mw_centre.to_numpy()[kb]
         for g, v in PM.items():
             pp["rate_mean" if g == "all" else f"rate_mean_{g}"] = v
         pp.to_csv(os.path.join(out, f"position_rates_{zone}.csv"), index=False, float_format="%.6e")
         with open(os.path.join(out, "README.md"), "w", encoding="utf-8") as f:
-            f.write(README.format(zone=zone, code=z["code"], n_branch=len(t)))
+            f.write(README.format(zone=zone, code=z["code"], n_branch=len(t), version=__version__))
     rep.note("Mean rates are weighted over the branches with the weights of the branch table. No Bayesian update is applied (decision 13).")
     rep.note("Rates are given to scenarios of rigidity model 00 only (decision 14).")
     return rep.write()

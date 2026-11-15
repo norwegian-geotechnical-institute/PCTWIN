@@ -25,18 +25,10 @@ Makran has not been run yet; what it needs is listed in the guide.
 `ps_scenario_rates/` gives every PS scenario an annual rate on each of the 480 branches of the logic tree. It is self-contained: its own configuration, code, unit tests, result tables and figures.
 
 - Start with `ps_scenario_rates/README.md` (how to use the rates, how to run).
-- The method, a table of every step with its limitations and planned improvements, the decisions taken, the results and the open points are in `ps_scenario_rates/docs/guide.md`.
+- The method, a table of every step with its limitations and planned improvements, the decisions taken and the open points are in `ps_scenario_rates/docs/guide.md`.
 
-Modelling choices in the first run, all set in `ps_scenario_rates/config/`:
-
-- Rate source: seismic (catalogue) and geodynamic (moment budget from convergence and coupling)
-- Segmentation: unconstrained (whole zone) and segmented
-- MFD form: truncated Gutenberg-Richter and tapered Pareto
-- b-value: ten values from 0.7 to 1.2
-- Mmax: largest observed, area limit, and their mean
-- Coupling: three levels (geodynamic branches)
-- Pooled inside each magnitude bin, not branches: scaling relation (Strasser et al. 2010; Thingbaijam et al. 2017) with its samples, slip realisations, rigidity model (homogeneous only for now)
-- Magnitude bins: those of the scenario set (Sunda: 31 bins, Mw 6.5 to 9.5)
+- The numbers and figures of the current version are in `ps_scenario_rates/docs/results.md`; every modelling choice is set in `ps_scenario_rates/config/`.
+- Current version of the rates: 1.0 (tag `v1.0`).
 
 ## Repository structure
 
@@ -48,7 +40,7 @@ ps_scenario_rates/
     tests/        unit tests
     products/     result tables and figures of every step
     data/         input files
-    docs/         guide.md and figures
+    docs/         guide.md, results.md and figures
 ```
 
 Folders for the later steps (initial conditions, propagation, hazard aggregation) are to be added as that work comes in.

@@ -14,3 +14,5 @@ DATA = os.environ.get("PTHA_DATA", os.path.join(ROOT, "data"))
 CONFIG = os.path.join(ROOT, "config")
 PRODUCTS = os.path.join(ROOT, "products")
 CHECKS = os.path.join(ROOT, "checks")
+with open(os.path.join(ROOT, "VERSION"), encoding="utf-8") as _f:
+    __version__ = _f.read().strip()       # version of the rates; written into the products

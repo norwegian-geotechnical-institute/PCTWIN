@@ -6,7 +6,7 @@ Run from ps_scenario_rates:
     python scripts/clean.py --all        also delete products/B1_inputs when the rupture fractions file is missing
 
 Deleted: products/ (tables and figures of every step and of the sensitivity tests), checks/ (check reports),
-docs/figures/ and the __pycache__ folders. Never touched: config/, data/, the code and the documents.
+docs/figures/, docs/results.md and the __pycache__ folders. Never touched: config/, data/, the code and the documents.
 
 Step B1 needs the rupture fractions file, which is not in the repository (data/README.md). If that file is not
 in the data folder, products/B1_inputs is kept, because it could not be made again; run_all.py then starts from
@@ -27,7 +27,7 @@ def targets(keep_b1):
         for name in sorted(os.listdir(PRODUCTS)):
             if not (keep_b1 and name == "B1_inputs"):
                 out.append(os.path.join(PRODUCTS, name))
-    out += [CHECKS, os.path.join(ROOT, "docs", "figures")]
+    out += [CHECKS, os.path.join(ROOT, "docs", "figures"), os.path.join(ROOT, "docs", "results.md")]
     for folder, dirs, _ in os.walk(ROOT):
         if ".git" in dirs:
             dirs.remove(".git")

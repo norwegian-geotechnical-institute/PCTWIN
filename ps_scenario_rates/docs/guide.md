@@ -1,6 +1,9 @@
 # PS scenario rates: guide
 
-State: 15 November 2026. Sunda, first run is done. Makran not yet done.
+Version 1.0 (15 November 2026). Sunda, first run is done. Makran not yet done.
+
+This guide explains the method, the steps, the decisions and the open points. The numbers and figures of the run are in
+[`results.md`](results.md), which the run writes itself; nothing there is typed by hand. The inputs are in `config/`.
 
 ## 1. Introduction
 
@@ -67,8 +70,8 @@ Things to know before using them:
   has name and mean rate side by side.
 - **Coverage.** Only scenarios of rigidity model 00 have a rate. A simulated scenario of another rigidity model must
   be left out for now, not given a zero.
-- **Units.** Events per year. The rates of all scenarios add up to the total rate of Mw 6.35 and larger
-  (1.66 per year in the mean).
+- **Units.** Events per year. The rates of all scenarios add up to the total rate of Mw 6.35 and larger.
+- **Version.** `scenario_rates_sunda.npz` carries the version of the rates (`version`); quote it with any hazard result.
 - **Weights.** `weight` in the branch table sums to 1 over the 480 branches. The split between rigidity models
   and scaling laws is already inside the rate (they are pooled, not branches).
 - **Means of groups.** `scenario_rates_sunda.npz` also holds the mean over the seismic, geodynamic, unconstrained and
@@ -120,28 +123,12 @@ Each scenario then receives its position's rate times its split.
 
 ![Logic tree](figures/logic_tree_sunda.png)
 
-| Level | Alternatives | Weights | Note |
-|---|---|---|---|
-| Rate source | seismic, geodynamic | 0.5, 0.5 | Open; equal until decided |
-| Segmentation | unconstrained, segmented | 0.5, 0.5 | |
-| MFD form | truncated Gutenberg-Richter, tapered Pareto | 0.5, 0.5 | |
-| b-value | 10 values, 0.7 to 1.2 | highest at the catalogue estimate (0.86), falling linearly | Same range for every zone and segment |
-| Mmax | largest observed, area limit, mean of the two | 0.10, 0.45, 0.45 | Whole zone: 9.2, 9.5, 9.35 |
-| Coupling (geodynamic only) | preferred - 0.2, preferred, preferred + 0.2, kept within 0.1 to 1 | equal | Open |
+Six levels: rate source, segmentation, MFD form, b-value, Mmax and, on the geodynamic branches, coupling. The weight of a
+branch is the product of the weights of its alternatives. Rigidity model and scaling law (Strasser et al. 2010;
+Thingbaijam et al. 2017) are pooled inside each bin and are not branches.
 
-Rigidity model and scaling law (Strasser et al. 2010; Thingbaijam et al. 2017, equal weights) are pooled inside
-each bin and are not branches. All of this is set in `config/logic_tree.yaml`; `figures/weights_panel_sunda.png`
-shows the weights.
-
-Segment values (`config/zones.yaml`):
-
-| Segment | b | Coupling (low / preferred / high) | Convergence (mm/yr) | Mmax observed / area limit |
-|---|---|---|---|---|
-| Arakan | 0.866 | 0.25 / 0.45 / 0.65 | 18 | 7.5 / 9.4 |
-| Aceh-Andaman | 0.876 | 0.50 / 0.70 / 0.90 | 25 | 9.2 / 9.5 |
-| Sumatra | 0.787 | 0.60 / 0.80 / 1.00 | 39 | 8.6 / 9.4 |
-| Java | 0.881 | 0.10 / 0.176 / 0.376 | 68 | 7.8 / 9.3 |
-| Sumba | 1.028 | 0.10 / 0.20 / 0.40 | 67 | 8.3 / 9.2 |
+The alternatives and weights are set in `config/logic_tree.yaml`, the values of each zone and segment (b, coupling,
+convergence, Mmax) in `config/zones.yaml`. Both are listed as used, with the figure of the weights, in `results.md`.
 
 ## 5. The steps
 
@@ -161,51 +148,15 @@ One run script per step (`scripts/run_B<n>_<name>.py`); each writes `products/<s
 
 The unit tests (`python -m unittest discover tests`) check the building blocks on small cases with known answers.
 
-## 6. Results for Sunda
+## 6. Results
 
-All numbers are from the run of 15 November 2026 and change with the configuration.
+See [`results.md`](results.md): the configuration used, the moment budget, modelled against observed large events, the mean
+rate of the zone, where the rate falls along the trench, the consistency checks and the figures. It is rewritten by every
+run (`scripts/make_results.py`), so it always matches the products.
 
-**Budget.** 4.4, 6.6 and 9.7 x 10^20 N m per year at low, preferred and high coupling (preferred: one Mw 9.0 per
-61 years). Shares of the preferred budget: Sumatra 43%, Aceh-Andaman 24%, Java 13%, Sumba 11%, Arakan 9%.
-Whole-zone coupling is 0.28 / 0.42 / 0.62; the seismic branches imply 0.39 on average.
-
-**Large events in 120 years** (the length of the catalogue), weighted mean over branches, 5% to 95% of branches in brackets:
-
-| | Mw >= 7.5 | Mw >= 8 | Mw >= 8.5 | Mw >= 9 |
-|---|---|---|---|---|
-| Observed, 1906 to 2025 | 18 | 5 | 3 | 1 |
-| Seismic, unconstrained | 12.2 (6.1 to 19.2) | 4.5 (1.6 to 8.1) | 1.5 (0.4 to 3.2) | 0.4 (0.1 to 1.0) |
-| Seismic, segmented | 11.9 (6.1 to 19.1) | 4.2 (1.6 to 8.0) | 1.3 (0.3 to 3.0) | 0.3 (0.0 to 0.8) |
-| Geodynamic, unconstrained | 16.3 (7.3 to 29.9) | 5.5 (2.9 to 9.1) | 1.8 (1.0 to 2.8) | 0.4 (0.2 to 0.7) |
-| Geodynamic, segmented | 24.9 (8.8 to 51.4) | 7.5 (3.4 to 14.3) | 1.8 (1.0 to 2.9) | 0.3 (0.1 to 0.7) |
-| All branches | 16.3 (6.8 to 35.2) | 5.4 (2.0 to 10.0) | 1.6 (0.4 to 3.0) | 0.4 (0.0 to 0.8) |
-
-![MFDs of all branches](figures/mfd_sunda.png)
-
-**Mean over all branches.** 1.66 events per year of Mw 6.35 and larger (seismic branches 1.06, geodynamic 2.25).
-Mw >= 7.64 once per 10 years; Mw >= 8.44 once per 64 years; Mw >= 8.99 once per 332 years; Mw >= 9.26 once per
-1,150 years.
-
-**Where the rate falls.** Events per year by segment, weighted mean:
-
-| Segment | Seismic branches | Geodynamic branches | Observed (Mw >= 6.35) |
-|---|---|---|---|
-| Arakan | 0.026 | 0.29 | 0.025 |
-| Aceh-Andaman | 0.18 | 0.39 | 0.18 |
-| Sumatra | 0.59 | 0.83 | 0.60 |
-| Java | 0.20 | 0.44 | 0.19 |
-| Sumba | 0.068 | 0.31 | 0.067 |
-
-![Rate along the trench](figures/rate_along_trench_sunda.png)
-
-The geodynamic branches give more moderate events than the record in every segment, most of all in Arakan (about
-eleven times) and Sumba (about five times). The main cause is the "largest observed" and "mean" Mmax alternatives
-in segments whose record holds no large event (step B4 in section 5).
-
-**Consistency.** Rate is conserved in every bin on every branch (relative error below 10^-12). The scenarios
-release 1.3% more moment than the MFD assigns, because a scenario carries the moment of its bin centre. Moment
-released in each segment against its budget (1 = balanced): 0.88 to 1.25 on the unconstrained branches, 0.95 to
-1.17 on the segmented ones; Java is highest in both, as large ruptures centred in Sumatra extend into it.
+How to read it: the seismic branches match the record at moderate magnitudes by construction. The geodynamic branches are
+an independent estimate; where they give more moderate events than the record, the likely cause is the "largest observed"
+and "mean" Mmax alternatives in segments whose record holds no large event (step B4 in section 5).
 
 ## 7. Sensitivity to coupling
 
@@ -218,22 +169,9 @@ Davies et al. (2018) (12 and 8.1 mm/yr). The Table 1 values are kept as a sensit
 python scripts/sens_coupling.py sunda Java=0.76 Arakan=1.0
 ```
 
-| | Configuration | Table 1 coupling |
-|---|---|---|
-| Preferred budget (N m/yr) | 6.6 x 10^20 | 1.01 x 10^21 |
-| Whole-zone coupling, preferred | 0.42 | 0.65 |
-| Geodynamic unconstrained, events in 120 years (Mw >= 7.5 / 8 / 8.5 / 9) | 16.3 / 5.5 / 1.8 / 0.4 | 24.0 / 8.1 / 2.6 / 0.6 |
-| Geodynamic segmented, same | 24.9 / 7.5 / 1.8 / 0.3 | 41.1 / 11.5 / 2.5 / 0.4 |
-| Geodynamic rate in Java (events per year) | 0.44 | 1.50 |
-| Geodynamic rate in Arakan | 0.29 | 0.60 |
-| All branches, Mw >= 6.35 per year | 1.66 | 2.35 |
-
-![Rate along the trench, both couplings](figures/sensitivity_coupling_Java0p76_Arakan1_rate_along_trench.png)
-
-![MFDs, both couplings](figures/sensitivity_coupling_Java0p76_Arakan1_mfd.png)
-
 The test recomputes budget, bin rates and shares in memory and writes to `products/sensitivity/`; nothing in the
-configuration or the main products changes. Any segment and value can be tested the same way.
+configuration or the main products changes. Any segment and value can be tested the same way. `run_all.py` runs the
+tests listed at its top, and their tables and figures appear at the end of `results.md`.
 
 ## 8. Decisions
 
@@ -293,3 +231,15 @@ Found while checking the scenario tables. Each of the below may change the rates
   only the weight calculation in `ptha_rates/shares.py` changes.
 - **Weights from data** (Bayesian update against the record of large events).
 - **Background seismicity** is outside this folder.
+
+## 11. Versions
+
+The version is the number in the file `VERSION`; it is written into the scenario rates and into `results.md`, and each
+version is a tag in the repository. Raise it whenever the rates change.
+
+| Version | Date | What |
+|---|---|---|
+| 1.0 | 15 November 2026 | Sunda, first run: homogeneous rigidity model, 480 branches, decisions 1 to 21 |
+
+To change an input: edit `config/`, run `python scripts/run_all.py`, add a row to the decisions in section 8 and to this
+table, raise `VERSION`, commit and tag.

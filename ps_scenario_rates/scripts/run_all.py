@@ -1,4 +1,4 @@
-"""Run the unit tests, every step in order, the sensitivity tests, and refresh docs/figures.
+"""Run the unit tests, every step in order and the sensitivity tests; refresh docs/figures and docs/results.md.
 
 Run from ps_scenario_rates:   python scripts/run_all.py [zone ...]     (default: sunda)
 Stops at the first step that fails a check. Step B1 is skipped when the rupture fractions file is not in the data
@@ -46,7 +46,9 @@ def main(zones):
         shutil.copyfile(f, os.path.join(fig, os.path.basename(f)))
     for f in glob.glob(os.path.join(ROOT, "products", "sensitivity", "*", "*.png")):
         shutil.copyfile(f, os.path.join(fig, f"sensitivity_{os.path.basename(os.path.dirname(f))}_{os.path.basename(f)}"))
-    print(f"Done. Check results: checks/INDEX.md. Figures: docs/figures ({len(os.listdir(fig))} files).")
+    if run([os.path.join("scripts", "make_results.py")] + zones):
+        return 1
+    print(f"Done. Check results: checks/INDEX.md. Numbers and figures of this run: docs/results.md.")
     return 0
 
 

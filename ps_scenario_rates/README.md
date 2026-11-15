@@ -6,8 +6,9 @@ distribution of the rates over the scenarios) and stops where the hazard aggrega
 
 Status: **Sunda, first run** (homogeneous rigidity model, 480 branches, 2,075,771 scenarios). Makran is not done yet.
 
-**Read `docs/guide.md` first.** It explains the method, each step with its limitations, the decisions taken,
-the results, and how to turn the rates into hazard curves.
+**Read `docs/guide.md` first.** It explains the method, each step with its limitations, the decisions taken and how to
+turn the rates into hazard curves. The numbers and figures of the run are in `docs/results.md`, written by the run itself.
+The version of the rates is in `VERSION` (now 1.0).
 
 ## Use the rates (no input data needed)
 
@@ -33,7 +34,7 @@ Needs Python 3 with numpy, pandas, matplotlib and pyyaml. Two of the three input
 python scripts/run_all.py
 ```
 
-This runs the unit tests, steps B0 to B8, the sensitivity test, and refreshes `docs/figures/`. It takes about
+This runs the unit tests, steps B0 to B8 and the sensitivity test, and rewrites `docs/figures/` and `docs/results.md`. It takes about
 three minutes for Sunda and stops at the first failed check. Each step can also be run alone
 (`python scripts/run_B4_bin_rates.py`), in order.
 
@@ -58,10 +59,10 @@ python scripts/run_all.py
 | `products/<step>/` | What each step produces and later steps read. Kept in the repository so the rates can be used without the input data. |
 | `checks/<step>/` | Written by every run, not kept in the repository: `report.md` per step and `INDEX.md` listing every check with its result. |
 | `data/` | Input files (the rupture fractions file has to be added; see its README). |
-| `docs/` | `guide.md` and the figures. |
+| `docs/` | `guide.md` (method, steps, decisions; written by hand), `results.md` and `figures/` (written by the run). |
 
 ## Conventions
 
-- A modelling choice is changed in `config/`, never in the code, and recorded in the decision table of `docs/guide.md`.
+- A modelling choice is changed in `config/`, never in the code, and recorded in the decision table of `docs/guide.md`. Numbers are never typed into a document: they come from `docs/results.md`.
 - A step is not built on until its checks pass. Checks marked INFO report a number for the record; PASS and FAIL are tests.
 - Sensitivity tests change nothing in `config/` or in the products of the steps; they write to `products/sensitivity/`.
