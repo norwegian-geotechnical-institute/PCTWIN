@@ -1,16 +1,10 @@
 # PS scenario rates: guide
 
-State: 15 November 2026. Sunda, first run. Makran not yet done.
+State: 15 November 2026. Sunda, first run is done. Makran not yet done.
 
-Contents: 1 What this is · 2 Computing hazard from the rates · 3 Method in brief · 4 The logic tree ·
-5 The steps · 6 Results for Sunda · 7 Sensitivity to coupling · 8 Decisions · 9 Open points on the inputs ·
-10 What is not done yet
+## 1. Introduction
 
-## 1. What this is
-
-The tsunami simulations give, for every scenario, the wave height at each point of interest. A hazard curve
-also needs the annual rate of every scenario. This folder computes that rate, on every branch of a logic tree
-that carries the uncertainty in how often earthquakes of each magnitude occur and where.
+This folder computes the annual rate of every scenario, on every branch of a logic tree that carries the uncertainty in how often earthquakes of each magnitude occur and where.
 
 Two independent ways of setting the rates are kept as branches:
 
@@ -32,7 +26,7 @@ What is in the first run and what is not:
 
 ## 2. Computing hazard from the rates
 
-Nothing but this folder is needed: the tables in `products/` are enough, the input data are not.
+For computing hazard, the tables in `products/` are enough; the input data are not needed.
 
 **Mean hazard curve.** Use the mean rate of each scenario over all branches:
 
@@ -72,14 +66,14 @@ Things to know before using them:
   `names`; do not rely on the order of any other file. `products/B7_rates/scenario_mean_rates_sunda.csv.gz`
   has name and mean rate side by side.
 - **Coverage.** Only scenarios of rigidity model 00 have a rate. A simulated scenario of another rigidity model must
-  be left out, not given a zero.
+  be left out for now, not given a zero.
 - **Units.** Events per year. The rates of all scenarios add up to the total rate of Mw 6.35 and larger
   (1.66 per year in the mean).
 - **Weights.** `weight` in the branch table sums to 1 over the 480 branches. The split between rigidity models
   and scaling laws is already inside the rate (they are pooled, not branches).
 - **Means of groups.** `scenario_rates_sunda.npz` also holds the mean over the seismic, geodynamic, unconstrained and
   segmented branches (`rate_mean_seismic` and so on), for a quick view of what drives the hazard.
-- **Provisional.** Section 5 lists what each step approximates and section 9 the open points on the inputs. Rates
+- **Provisional.** Section 5 below lists what each step approximates and section 9 the open points on the inputs. Rates
   will change when those are settled; rerun and replace, do not patch.
 
 The formula behind a rate, should you want to rebuild it from the tables yourself:
@@ -156,11 +150,11 @@ One run script per step (`scripts/run_B<n>_<name>.py`); each writes `products/<s
 | Step | What it does | Main products | Limitation in this run | Improvement |
 |---|---|---|---|---|
 | B0 Configuration | Reads and validates the two configuration files; builds the 480 branches with their weights | `branch_table`, logic tree figure, weights panel | Weights of rate source and coupling levels are equal by default | Agreed weights; Bayesian update against the record |
-| B1 Input tables | Reads the scenario table and the mesh; assigns bins, positions, splits; gives every triangle a segment and a distance along the trench | `scenarios.npz`, `bins`, `triangles`, `trench` | Bin edges are midpoints between bin centres. The triangle-to-segment map is derived from the smallest scenarios (approximate at boundaries). Realisations per rupture are uneven (1 to 10). | Bin edges and segment table from the scenario provider |
+| B1 Input tables | Reads the scenario table and the mesh; assigns bins, positions, splits; gives every triangle a segment and a distance along the trench | `scenarios.npz`, `bins`, `triangles`, `trench` | Bin edges are midpoints between bin centres. The triangle-to-segment map is derived from the smallest scenarios (approximate at boundaries). Realisations per rupture are uneven (1 to 10). | Bin edges and segment table are needed from Dipankar to correct this |
 | B2 Loading and budget | Coupling x convergence per triangle; moment budget per segment and for the zone at three coupling levels | `budget` | Coupling and convergence are constant inside a segment. Convergence is used as given (not projected onto the interface). One rigidity (30 GPa). | Values per triangle; a budget per rigidity model |
-| B3 Catalogue | Assigns catalogue events to segments; counts events above the anchor magnitude; largest observed event per unit | `parameters`, catalogue fit figure | Events go to the segment of the nearest triangle with no depth or mechanism filter. Arakan (3 events) and Sumba (8) have uncertain anchor rates. b and Mc are taken from the source characterisation, not refitted. | Interface-only catalogue; uncertainty on the anchor rate as a branch |
+| B3 Catalogue | Assigns catalogue events to segments; counts events above the anchor magnitude; largest observed event per unit | `parameters`, catalogue fit figure | Events go to the segment of the nearest triangle with no depth or mechanism filter. Arakan (3 events) and Sumba (8) have uncertain anchor rates. b and Mc are taken from the source characterisation, not refitted. | Interface-only catalogue (thrust-mechanism events only); uncertainty on the anchor rate as a branch? |
 | B4 Bin rates | Annual rate of every bin for every unit, rate variant, MFD form, b-value and Mmax | `bin_rates.npz`, MFD figure, modelled against observed large events | The tapered Pareto is cut at the top of the last bin (no scenarios above Mw 9.52). In segments with no large event on record, the "largest observed" Mmax forces the whole budget into moderate events. | Review the Mmax alternatives for quiet segments; decide the tail treatment |
-| B5 Shares, unconstrained | Share of each bin's rate for every position, for the seismic variant and the three coupling levels | `shares.npz` | Rupture footprints are not available: loading under a rupture is taken from its segment fractions, so inside a segment all positions of a bin get the same weight | Footprint-based shares (needs a reduction of the slip files on the provider's side) |
+| B5 Shares, unconstrained | Share of each bin's rate for every position, for the seismic variant and the three coupling levels | `shares.npz` | Rupture footprints are not available: loading under a rupture is taken from its segment fractions, so inside a segment all positions of a bin get the same weight | Footprint-based shares (needs a reduction of the slip files on Dipankar's side) |
 | B6 Shares, segmented | Share of each segment's bin rate for every position, including ruptures that cross a boundary | `shares_segmented.npz` | No penalty on boundary-crossing ruptures (`crossing_penalty: 1`). Same shares for all rate variants, for the reason given under B5. | Penalty from evidence on segment boundaries, if wanted |
 | B7 Scenario rates | Mean rate of every scenario over all branches and over four groups; reader for any single branch | `scenario_rates.npz`, `scenario_mean_rates.csv.gz` | Rates per branch are rebuilt on request, not stored (480 x 2 million values) | |
 | B8 End-to-end checks | Rate conserved in every bin on every branch; moment released against the budget, in total and per segment; events per segment against the catalogue; rate along the trench | check report, rate-along-trench figure | Reports, does not correct | |
@@ -243,7 +237,7 @@ configuration or the main products changes. Any segment and value can be tested 
 
 ## 8. Decisions
 
-Taken by the lead of this work; open to review by the group. The numbers are those used in the code and the configuration.
+Taken by Himanshu; open to review by the group. The numbers are those used in the code and the configuration.
 
 | # | Question | Decision | Status |
 |---|---|---|---|
@@ -275,7 +269,7 @@ without a filter; the seismic shares use events above the anchor per km2 of segm
 
 ## 9. Open points on the inputs
 
-Found while checking the scenario tables. None stops the run; each may change the rates when answered.
+Found while checking the scenario tables. Each of the below may change the rates when answered.
 
 | # | Point | Effect |
 |---|---|---|
@@ -289,7 +283,7 @@ Found while checking the scenario tables. None stops the run; each may change th
 | H8 | Open decisions 1 and 11 and the coupling weights | Equal weights until settled |
 | H9 | Depth-dependent rigidity models | Need the rigidity profiles; then a budget per model |
 
-## 10. What is not done yet
+## 10. Next steps
 
 - **Makran.** The code takes any zone listed in `config/zones.yaml`. Makran needs its mesh as a text file, a
   catalogue, and the coupling and Mmax values that are still empty there. Then `python scripts/run_all.py makran`.

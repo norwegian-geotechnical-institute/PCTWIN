@@ -129,7 +129,7 @@ def rate_along_trench(path, title, tri, trench, s_pos, kb, bins, names, curves, 
         am.text(tri.lon[j].mean() + (0.0 if flat else 0.8), tri.lat[j].mean() + (1.6 if flat else 0.0), n_, fontsize=9.5,
                 ha="center" if flat else "left", va="bottom" if flat else "center", style="italic")
     am.set_aspect(1 / np.cos(np.deg2rad(tri.lat.mean()))); am.set_xlabel("longitude"); am.set_ylabel("latitude"); am.yaxis.tick_right(); am.yaxis.set_label_position("right")
-    am.set_xlim(tri.lon.min() - 6.5, tri.lon.max() + 1); am.set_title("How the arc is unrolled", fontsize=11)
+    am.set_xlim(tri.lon.min() - 6.5, tri.lon.max() + 1)
     fig.suptitle(title, y=0.97)
     fig.text(0.01, 0.01, "Right: the trench line (black) with distance along it in km; grey, the mesh. A rupture is placed at the trench point nearest to its initiation triangle.\n"
              "Left: grey lines are approximate segment boundaries." + (" " + note if note else ""), fontsize=NOTE, va="bottom")
