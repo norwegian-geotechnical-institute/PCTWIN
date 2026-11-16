@@ -102,7 +102,7 @@ def main(zones):
                              "slip_per_geometry_max": g1.groupby("bin").n_slip.max().reindex(bins.bin).to_numpy()})
         real.to_csv(os.path.join(out, f"realisations_{zone}.csv"), index=False)
         np.savez_compressed(os.path.join(out, f"scenarios_{zone}.npz"), **{c: s[c].to_numpy() for c in s.columns})
-        rep.check(f"{zone}: realisations per position and geometry", "Uneven numbers of realisations (issue H4); the split uses the counts that exist", None,
+        rep.check(f"{zone}: realisations per position and geometry", "Uneven numbers of realisations (issue H3); the split uses the counts that exist", None,
                   f"positions {len(p1):,}: {100 * (p1.n_sreal == 1).mean():.0f}% have 1 scaling sample, {100 * (p1.n_sreal == 10).mean():.0f}% have 10; "
                   f"geometries {len(g1):,}: {100 * (g1.n_slip == 1).mean():.0f}% have 1 slip realisation, {100 * (g1.n_slip == 10).mean():.0f}% have 10")
     rep.note("Bin edges are midpoints between bin centres (decision 5), a stand-in until the edges are supplied.")

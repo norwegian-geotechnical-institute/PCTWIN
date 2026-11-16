@@ -69,7 +69,7 @@ Things to know before using them:
 - **Means of groups.** `scenario_rates_sunda.npz` also holds the mean over the seismic, geodynamic, unconstrained and
   segmented branches (`rate_mean_seismic` and so on), for a quick view of what drives the hazard.
 - **Provisional.** Section 5 below lists what each step approximates and section 9 the open points on the inputs. Rates
-  will change when those are settled; rerun and replace, do not patch.
+  will change when those are settled; rerun and replace, do not patch!.
 
 The formula behind a rate, should you want to rebuild it from the tables yourself:
 
@@ -86,14 +86,13 @@ The formula behind a rate, should you want to rebuild it from the tables yoursel
 ## 3. Method in brief
 The method is detailed in this doc file: https://docs.google.com/document/d/1egjXVHOM4ZHP2JqCGmNSFqsZXr3nyb-Q/edit?rtpof=true&tab=t.0 However, the key ideas are included here as well.
 
-Some terms useful to know (that I have used, which may make your life easier to understand the code):
+Two terms you will meet below and all over the code:
 
-- **Bin**: one of the magnitudes at which scenarios exist (31 for Sunda).
 - **Position**: where and how a rupture is placed: rigidity model + scaling law + magnitude bin + initiation triangle.
-  123,988 positions for Sunda.
-- **Split**: a position usually has several scenarios (scaling samples and slip realisations). The position's rate is
-  divided equally among those that exist.
-- **Unit**: the whole zone, or one segment.
+- **Split**: a position usually has several scenarios (scaling samples and slip realisations); its rate is divided
+  equally among those that exist.
+
+A **unit** is the whole zone or one segment, and a **bin** is one of the magnitudes at which scenarios exist.
 
 Bin rates:
 
@@ -131,9 +130,9 @@ One run script per step (`scripts/run_B<n>_<name>.py`); each writes `products/<s
 | B0 Configuration | Reads and validates the two configuration files; builds the 480 branches with their weights | `branch_table`, logic tree figure, weights panel | Weights of rate source and coupling levels are equal by default | Agreed weights; Bayesian update against the record |
 | B1 Input tables | Reads the scenario table and the mesh; assigns bins, positions, splits; gives every triangle a segment and a distance along the trench | `scenarios.npz`, `bins`, `triangles`, `trench` | Bin edges are midpoints between bin centres. The triangle-to-segment map is derived from the smallest scenarios (approximate at boundaries). Realisations per rupture are uneven (1 to 10). | Bin edges and segment table are needed from Dipankar to correct this |
 | B2 Loading and budget | Coupling x convergence per triangle; moment budget per segment and for the zone at three coupling levels | `budget` | Coupling and convergence are constant inside a segment. Convergence is used as given (not projected onto the interface). One rigidity (30 GPa). | Values per triangle; a budget per rigidity model |
-| B3 Catalogue | Assigns catalogue events to segments; counts events above the anchor magnitude; largest observed event per unit | `parameters`, catalogue fit figure | Events go to the segment of the nearest triangle with no depth or mechanism filter. Arakan (3 events) and Sumba (8) have uncertain anchor rates. b and Mc are taken from the source characterisation, not refitted. | Interface-only catalogue (thrust-mechanism events only); uncertainty on the anchor rate as a branch? |
+| B3 Catalogue | Assigns catalogue events to segments; counts events above the anchor magnitude; largest observed event per unit | `parameters`, catalogue fit figure | Events go to the segment of the nearest triangle with no depth or mechanism filter. Arakan (3 events) and Sumba (8) have uncertain anchor rates. b and Mc are taken from the Madan's estimates, not refitted. | Interface-only catalogue (thrust-mechanism events only); uncertainty on the anchor rate as a branch? |
 | B4 Bin rates | Annual rate of every bin for every unit, rate variant, MFD form, b-value and Mmax | `bin_rates.npz`, MFD figure, modelled against observed large events | The tapered Pareto is cut at the top of the last bin (no scenarios above Mw 9.52). In segments with no large event on record, the "largest observed" Mmax forces the whole budget into moderate events. | Review the Mmax alternatives for quiet segments; decide the tail treatment |
-| B5 Shares, unconstrained | Share of each bin's rate for every position, for the seismic variant and the three coupling levels | `shares.npz` | Rupture footprints are not available: loading under a rupture is taken from its segment fractions, so inside a segment all positions of a bin get the same weight | Footprint-based shares (needs a reduction of the slip files on Dipankar's side) |
+| B5 Shares, unconstrained | Share of each bin's rate for every position, for the seismic variant and the three coupling levels | `shares.npz` | Rupture footprints are not used by default: loading under a rupture is taken from its segment fractions, so inside a segment all positions of a bin get the same weight. Can be run with Dipankar's slip models (end of this section). | Footprint-based shares (needs a reduction of the slip files on Dipankar's side) |
 | B6 Shares, segmented | Share of each segment's bin rate for every position, including ruptures that cross a boundary | `shares_segmented.npz` | No penalty on boundary-crossing ruptures (`crossing_penalty: 1`). Same shares for all rate variants, for the reason given under B5. | Penalty from evidence on segment boundaries, if wanted |
 | B7 Scenario rates | Mean rate of every scenario over all branches and over four groups; reader for any single branch | `scenario_rates.npz`, `scenario_mean_rates.csv.gz` | Rates per branch are rebuilt on request, not stored (480 x 2 million values) | |
 | B8 End-to-end checks | Rate conserved in every bin on every branch; moment released against the budget, in total and per segment; events per segment against the catalogue; rate along the trench | check report, rate-along-trench figure | Reports, does not correct | |
@@ -217,21 +216,18 @@ Choices made in the code and not yet confirmed: the tapered Pareto is cut at the
 budget balanced over the modelled bins (`tapered_tail`); catalogue events are assigned to the nearest segment
 without a filter; the seismic shares use events above the anchor per km2 of segment.
 
-## 9. Open points on the inputs
+## 9. Some questions and potential consideration on the inputs
 
-Found while checking the scenario tables. Each of the below may change the rates when answered.
+Here are few things I found while checking the scenario tables that might have some consequences. Flagged here in case we decide to do something about these: 
 
 | # | Point | Effect |
 |---|---|---|
 | H1 | In the one slip sample checked (Mw 9.03), slip x area x 30 GPa is about 12% below the named moment for ruptures centred south of 8°S (Java, Sumba) | Tsunami sources there may carry less moment than the bin they get a rate for |
-| H2 | 6% of Sunda scenarios have a total moment 0.01 to 0.07 magnitude units above the named magnitude (mostly slip realisation 000, Mw 7.93 and below) | No scenario changes bin; about 0.3% in the moment balance |
-| H3 | Segment fractions of boundary-crossing ruptures changed between the two versions of the fractions file | To be confirmed as moment fractions; a triangle-to-segment table would allow an independent check |
-| H4 | Realisations are uneven: most rupture geometries have one slip realisation, others ten; scaling samples per triangle vary from 1 to 10 | The split uses the counts that exist |
-| H5 | Stand-ins: bin edges, segment map, per-segment coupling and convergence, footprints | Replace and rerun B1, B2, B5 |
-| H6 | Values still missing for Makran and for the whole-zone entries | Needed before the Makran run |
-| H7 | The method document of the work package gives branch counts for three b-values (with ten there are 360 and 120) and Mw 6.0 as the smallest magnitude (Sunda scenarios start at the Mw 6.5 bin) | To be corrected there |
-| H8 | Open decisions 1 and 11 and the coupling weights | Equal weights until settled |
-| H9 | Depth-dependent rigidity models | Need the rigidity profiles; then a budget per model |
+| H2 | 6% of Sunda scenarios have a total moment 0.01 to 0.07 magnitude units above the named magnitude (mostly slip realisation 000, Mw 7.93 and below) | No scenario changes bin; about 0.2% in the moment balance |
+| H3 | Realisations are uneven: most rupture geometries have one slip realisation, others ten; scaling samples per triangle vary from 1 to 10 | The split uses the counts that exist |
+
+
+
 
 ## 10. Next steps
 
@@ -239,10 +235,11 @@ Found while checking the scenario tables. Each of the below may change the rates
   catalogue, and the coupling and Mmax values that are still empty there. Then `python scripts/run_all.py makran`.
 - **Depth-dependent rigidity models** (01 to 03): set their weights under `event_tree: rigidity_model` once a
   budget per model is coded.
-- **Shares from rupture footprints**, replacing the segment-fraction approximation. The code is organised so that
-  only the weight calculation in `ptha_rates/shares.py` changes.
+- **Real rupture footprints.** The option is in the code (end of section 5). What is missing is the footprints themselves,
+  reduced from Dipankar's slip files with `tools/reduce_slip_files.py`.
 - **Weights from data** (Bayesian update against the record of large events).
-- **Background seismicity** is outside this folder.
+- **Variable coupling and convergence rate.** Read them per triangle in step B2, not per segment. The footprints only
+  start to matter once this is in.
 
 ## 11. Versions
 
