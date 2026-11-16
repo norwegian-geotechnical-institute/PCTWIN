@@ -7,5 +7,6 @@ products/B2_budget/loading_*.csv
 products/B3_catalogue/catalogue_*.csv
 products/B4_bin_rates/bin_rates_*.csv
 products/B5_shares/positions_*.csv
+products/B5_shares/footprints_*.npz
 products/B7_rates/position_rates_*.csv
 __pycache__/

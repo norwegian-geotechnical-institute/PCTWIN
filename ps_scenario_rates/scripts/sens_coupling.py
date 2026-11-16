@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 import pandas as pd
-from ptha_rates import PRODUCTS, binrates, branches, budget, catalogue, config, mfd, plotting, rates, shares
+from ptha_rates import PRODUCTS, binrates, branches, budget, catalogue, config, footprints, mfd, plotting, rates, shares
 import run_B4_bin_rates as b4
 plt = plotting.plt
 
@@ -93,10 +93,10 @@ def main(zone, overrides):
     for s in cfg2["zones"][zone]["segments"]:
         if s["name"] in overrides:
             s["coupling"] = overrides[s["name"]]
-    out_rows, buds, Rs = [], {}, {}
+    out_rows, buds, Rs, loads = [], {}, {}, {}
     for label, c in (("present", cfg), ("test", cfg2)):
         z = c["zones"][zone]
-        bud = budget.budget_table(budget.loading_table(tri, z, c["tree"]), z)
+        loads[label] = budget.loading_table(tri, z, c["tree"]); bud = budget.budget_table(loads[label], z)
         R = binrates.compute(c, par, bud, bins); R["mw_lower0"] = bins.mw_lower.iloc[0]
         out_rows.append(summary(R, table, par, cat, m_top, label)); buds[label] = bud.set_index("unit"); Rs[label] = R
     S = pd.concat(out_rows, ignore_index=True)
@@ -125,12 +125,19 @@ def main(zone, overrides):
     D = rates.load(zone, cfg); pos = shares.position_table(np.load(os.path.join(P, "B1_inputs", f"scenarios_{zone}.npz")), n_seg)
     assert (pos.tri.to_numpy() == D["pos"].tri.to_numpy()).all()
 
-    def geo_shares(bud):
-        b = bud.loc[names]
-        vals = {"seismic": np.ones(n_seg), **{f"geodynamic_{lv}": b[f"loading_{lv}_mm_yr"].to_numpy() for lv in ("low", "preferred", "high")}}
-        return shares.unconstrained_shares(pos, vals, n_seg)[1:]
-    assert np.allclose(geo_shares(buds["present"]), D["U"][1:]), "present shares are not reproduced"
-    U2 = D["U"].copy(); U2[1:] = geo_shares(buds["test"]); D2 = dict(D, R=Rs["test"], U=U2)
+    if cfg["tree"]["options"]["footprints"] == "segment_fraction_approximation":
+        def geo_shares(bud):
+            b = bud.loc[names]
+            vals = {"seismic": np.ones(n_seg), **{f"geodynamic_{lv}": b[f"loading_{lv}_mm_yr"].to_numpy() for lv in ("low", "preferred", "high")}}
+            return shares.unconstrained_shares(pos, vals, n_seg)[1:]
+        assert np.allclose(geo_shares(buds["present"]), D["U"][1:]), "present shares are not reproduced"
+        U2 = D["U"].copy(); U2[1:] = geo_shares(buds["test"]); D2 = dict(D, R=Rs["test"], U=U2)
+    else:                                                   # with rupture footprints the segmented shares change with the loading as well
+        fp = footprints.load(shares.footprint_path(zone))
+        tv = {k: shares.triangle_values(loads[k], par, buds[k].reset_index(), names) for k in ("present", "test")}
+        assert np.allclose(shares.unconstrained_shares_fp(pos, fp, tv["present"]), D["U"]), "present shares are not reproduced"
+        D2 = dict(D, R=Rs["test"], U=shares.unconstrained_shares_fp(pos, fp, tv["test"]),
+                  X=shares.segmented_shares_fp(pos, fp, tv["test"], tri.segment.to_numpy(), n_seg, cfg["tree"]["options"]["crossing_penalty"])[0])
     geo = (table.rate_source == "geodynamic").to_numpy()
     PMs, PMg, PMg2 = rates.mean_position_rates(D, ~geo), rates.mean_position_rates(D, geo), rates.mean_position_rates(D2, geo)
     tri_i = tri.set_index("id"); kb = D["pos"].bin.to_numpy(); F = pos[[f"seg_{i + 1}" for i in range(n_seg)]].to_numpy()

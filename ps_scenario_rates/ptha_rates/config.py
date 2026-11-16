@@ -5,6 +5,7 @@ from . import CONFIG
 
 LEVELS = ["rate_source", "segmentation", "mfd_form", "b_value", "mmax", "coupling"]
 TOL = 1e-9
+FOOTPRINTS = ["segment_fraction_approximation", "estimated", "from_file"]
 
 
 def load(config_dir=None):
@@ -44,6 +45,11 @@ def validate(cfg):
         errors.append("coupling floor and ceiling must satisfy 0 <= floor < ceiling <= 1")
     for k in ("rigidity_model", "scaling_law"):
         _sum_to_one(k, cfg["tree"]["event_tree"][k], errors)
+    fp = cfg["tree"]["options"].get("footprints")
+    if fp not in FOOTPRINTS:
+        errors.append(f"options: footprints must be one of {', '.join(FOOTPRINTS)}")
+    if fp == "estimated" and any(k not in cfg["tree"]["options"].get("footprint_area", {}) for k in active(cfg["tree"]["event_tree"]["scaling_law"])):
+        errors.append("options: footprint_area needs an entry for every scaling law in use")
     for zone, z in cfg["zones"].items():
         for f in ("triangles", "catalogue"):
             if z.get(f) is None:

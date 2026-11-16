@@ -17,8 +17,10 @@ Segmented branches (step B6): one share per position and segment
     touch more than one segment, else 1. The segment's own loading or density is the same for all
     its positions and cancels, so in the first run this share is the same for all four variants.
 """
+import os
 import numpy as np
 import pandas as pd
+from . import DATA, PRODUCTS, footprints
 
 VARIANTS = ["seismic", "geodynamic_low", "geodynamic_preferred", "geodynamic_high"]
 
@@ -57,3 +59,49 @@ def segmented_shares(pos, n_seg, crossing_penalty=1.0):
     F = pos[[f"seg_{i + 1}" for i in range(n_seg)]].to_numpy()
     pen = np.where((F > 0).sum(axis=1) > 1, crossing_penalty, 1.0)
     return np.column_stack([_normalise(F[:, g] * pen, pos.cell.to_numpy()) for g in range(n_seg)])
+
+
+# ---------------------------------------------------------------- with rupture footprints
+# Options `estimated` and `from_file`. The weight of a position is the area-weighted mean, over the triangles of its
+# footprint, of the loading (geodynamic) or of the seismicity density (seismic) on those triangles. Loading that varies
+# from triangle to triangle is therefore followed inside a segment. On the segmented branches the same sum is taken
+# over the triangles of each segment separately, so these shares differ between the variants.
+
+def triangle_values(load, par, bud, names):
+    """dict variant -> one value per triangle, in the order of the loading table of step B2.
+    Seismic: events above the anchor per km2 of the triangle's segment (as in the approximation)."""
+    seg = load.segment.to_numpy() - 1
+    dens = (par.set_index("unit").loc[names, "n_ge_anchor"].to_numpy() / bud.set_index("unit").loc[names, "area_km2"].to_numpy())[seg]
+    return {"seismic": dens, **{f"geodynamic_{lv}": load[f"loading_{lv}_mm_yr"].to_numpy() for lv in ("low", "preferred", "high")}}
+
+
+def get_footprints(cfg, zone, tri, pos, bins, scen=None):
+    """Footprint table for the option in the configuration (None for the approximation)."""
+    opt = cfg["tree"]["options"]; mode = opt["footprints"]
+    if mode == "segment_fraction_approximation":
+        return None
+    if mode == "estimated":
+        mw = bins.mw_centre.to_numpy()[pos.bin.to_numpy()]; area = np.zeros(len(pos))
+        for k, coef in opt["footprint_area"].items():
+            m = (pos.scal == int(k)).to_numpy(); area[m] = footprints.law_area(mw[m], coef)
+        return footprints.estimate(tri, pos.tri.to_numpy(), area)
+    return footprints.from_file(os.path.join(DATA, "footprints"), cfg["zones"][zone]["code"], scen, tri, len(pos))
+
+
+def footprint_path(zone):
+    return os.path.join(PRODUCTS, "B5_shares", f"footprints_{zone}.npz")
+
+
+def unconstrained_shares_fp(pos, fp, tri_values):
+    """As unconstrained_shares, with the weight taken under the footprint. Returns variant x position."""
+    return np.array([_normalise(footprints.row_sums(fp, tri_values[v]), pos.cell.to_numpy()) for v in VARIANTS])
+
+
+def segmented_shares_fp(pos, fp, tri_values, tri_segment, n_seg, crossing_penalty=1.0):
+    """As segmented_shares, with the weight on segment g = sum over the footprint's triangles in g of
+    area fraction x value. Returns (variant x position x segment, footprint segment fractions)."""
+    seg = np.asarray(tri_segment); cell = pos.cell.to_numpy()
+    Ff = np.column_stack([footprints.row_sums(fp, (seg == g + 1).astype(float)) for g in range(n_seg)])
+    pen = np.where((Ff > 0).sum(axis=1) > 1, crossing_penalty, 1.0)
+    X = np.array([np.column_stack([_normalise(footprints.row_sums(fp, np.where(seg == g + 1, tri_values[v], 0.0)) * pen, cell) for g in range(n_seg)]) for v in VARIANTS])
+    return X, Ff

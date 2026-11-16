@@ -35,7 +35,8 @@ def position_rates(D, branch):
     if branch.segmentation == "unconstrained":
         v = shares.VARIANTS.index(binrates.variant_of(branch.rate_source, branch.coupling))
         return D["pooled"] * r[0][k] * D["U"][v]
-    return D["pooled"] * (r[1:][:, k].T * D["X"]).sum(axis=1)
+    X = D["X"] if D["X"].ndim == 2 else D["X"][shares.VARIANTS.index(binrates.variant_of(branch.rate_source, branch.coupling))]   # per variant with footprints
+    return D["pooled"] * (r[1:][:, k].T * X).sum(axis=1)
 
 
 def mean_position_rates(D, mask=None):

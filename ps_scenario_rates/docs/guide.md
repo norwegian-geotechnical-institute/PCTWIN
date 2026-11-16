@@ -3,29 +3,21 @@
 Version 1.0 (15 November 2026). Sunda, first run is done. Makran not yet done.
 
 This guide explains the method, the steps, the decisions and the open points. The numbers and figures of the run are in
-[`results.md`](results.md), which the run writes itself; nothing there is typed by hand. The inputs are in `config/`.
+[`results.md`](results.md), which the run writes itself. The inputs are in `config/`.
 
 ## 1. Introduction
 
-This folder computes the annual rate of every scenario, on every branch of a logic tree that carries the uncertainty in how often earthquakes of each magnitude occur and where.
-
-Two independent ways of setting the rates are kept as branches:
-
-- **Seismic**: the earthquake catalogue fixes how many events occur (the rate of Mw 6.35 and larger since 1906).
-- **Geodynamic**: plate convergence and coupling fix how much moment must be released per year (the moment budget).
-
-In both, a magnitude-frequency distribution (MFD) divides the total among magnitude bins, and a share rule
-divides each bin's rate among the scenarios of that bin.
-
-What is in the first run and what is not:
+This folder computes the annual rate of every scenario, on every branch of a logic tree that carries the uncertainty in how often earthquakes of each magnitude occur and where. This run (version 1.0) follows the discussion on 11th and 12th november 2026 meeting within WP1. The choices are simplified (quite a lot, I would say) , below is the list of main features that are in this first run:
 
 | | In this run |
 |---|---|
 | Zone | Sunda megathrust, five segments: Arakan, Aceh-Andaman, Sumatra, Java, Sumba |
-| Scenarios | The 2,075,771 scenarios of rigidity model 00 (homogeneous, 30 GPa). The other rigidity models have no rate yet. |
-| Magnitudes | 31 bins, Mw 6.35 to 9.52 |
+| Scenarios | The 2,075,771 scenarios of rigidity model 00 (homogeneous, 30 GPa). The other rigidity models have no rate yet. (I don't have rigidity models!!) |
+| Magnitudes | 31 bins, Mw 6.35 to 9.52 (This won't change, unless dipankar has used some other bin edges) |
 | Branches | 480 (360 geodynamic, 120 seismic) |
-| Weights | Set in the configuration; several are equal weights waiting for a decision. No Bayesian update yet. |
+| Weights | Several are equal weights. No Bayesian update yet (must needed later). |
+
+Note that, I have laid out the code with triangle-level detail in mind. The moment budget is already computed triangle by triangle, so depth-dependent rigidity or coupling that varies in space can be added to the budget with little effort. The placement of the rates within a segment can also be made triangle-level through rupture footprints, as an optional setting (end of section 5); version 1.0 does not use it.
 
 ## 2. Computing hazard from the rates
 
@@ -92,8 +84,9 @@ The formula behind a rate, should you want to rebuild it from the tables yoursel
 | Shares, segmented branches (position x segment) | `products/B6_segmented/shares_segmented_sunda.npz` |
 
 ## 3. Method in brief
+The method is detailed in this doc file: https://docs.google.com/document/d/1egjXVHOM4ZHP2JqCGmNSFqsZXr3nyb-Q/edit?rtpof=true&tab=t.0 However, the key ideas are included here as well.
 
-Terms:
+Some terms useful to know (that I have used, which may make your life easier to understand the code):
 
 - **Bin**: one of the magnitudes at which scenarios exist (31 for Sunda).
 - **Position**: where and how a rupture is placed: rigidity model + scaling law + magnitude bin + initiation triangle.
@@ -101,7 +94,6 @@ Terms:
 - **Split**: a position usually has several scenarios (scaling samples and slip realisations). The position's rate is
   divided equally among those that exist.
 - **Unit**: the whole zone, or one segment.
-- **Moment budget**: sum over triangles of rigidity x area x coupling x convergence, in N m per year.
 
 Bin rates:
 
@@ -147,6 +139,26 @@ One run script per step (`scripts/run_B<n>_<name>.py`); each writes `products/<s
 | B8 End-to-end checks | Rate conserved in every bin on every branch; moment released against the budget, in total and per segment; events per segment against the catalogue; rate along the trench | check report, rate-along-trench figure | Reports, does not correct | |
 
 The unit tests (`python -m unittest discover tests`) check the building blocks on small cases with known answers.
+
+### Rupture footprints (optional setting)
+
+A footprint is the list of triangles a rupture covers. With footprints, the weight of a rupture in steps B5 and B6 is the mean
+loading (or seismicity density) over its own triangles, so loading that varies inside a segment is followed. The setting is
+`footprints` in `config/logic_tree.yaml`:
+
+| Setting | Footprint comes from | Status |
+|---|---|---|
+| `segment_fraction_approximation` | not used; segment fractions of the fractions file | default; version 1.0 |
+| `estimated` | the triangles nearest to the initiation triangle, up to the median area of the scaling law | runs now, needs no new input |
+| `from_file` | the slip files, reduced by `tools/reduce_slip_files.py` and placed in `data/footprints/` | runs once those files exist |
+
+Checked against the slip sample available (105 ruptures, Mw 9.03, scaling sample 00): the area in the slip files equals the
+scaling-law area within 0.1%, and the estimated footprint shares 96% of its triangles with the real one (median). Other
+magnitudes and the other scaling samples, whose areas differ from the median, could not be checked. With the present
+loading, constant inside each segment, `estimated` changes the scenario rates very little (0.2% of the rate moves, 2.5%
+for Mw 8.5 and above), so it matters only once loading per triangle is supplied.
+
+`reduce_slip_files.py` needs only Python and numpy and is run where the slip files are; its header explains the arguments.
 
 ## 6. Results
 

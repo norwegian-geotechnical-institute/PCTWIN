@@ -36,7 +36,8 @@ def zone_section(zone, cfg):
         txt = open(idx, encoding="utf-8").read()
         L += [f"Checks of this run: {txt.count('| PASS |')} passed, {txt.count('| FAIL |')} failed, {txt.count('| INFO |')} reported for information (`checks/INDEX.md`).", ""]
 
-    L += ["### Configuration used", "", "Weights of the logic tree (`config/logic_tree.yaml`):", ""]
+    L += ["### Configuration used", "", f"Placement of the rate among rupture positions (`footprints`): {tree['options']['footprints'].replace('_', ' ')}.", "",
+          "Weights of the logic tree (`config/logic_tree.yaml`):", ""]
     bv, bw = branches.b_values(tree), branches.b_weights(z["whole_zone"]["b"], tree)
     rows = [[k.replace("_", " "), ", ".join(f"{a.replace('_', ' ')} {v:g}" for a, v in lv[k].items())] for k in ("rate_source", "segmentation", "mfd_form", "mmax")]
     rows.insert(3, ["b-value", ", ".join(f"{b:.2f}: {x:.3f}" for b, x in zip(bv, bw))])

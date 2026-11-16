@@ -11,6 +11,8 @@ Checks of this run: 38 passed, 0 failed, 38 reported for information (`checks/IN
 
 ### Configuration used
 
+Placement of the rate among rupture positions (`footprints`): segment fraction approximation.
+
 Weights of the logic tree (`config/logic_tree.yaml`):
 
 | Level | Alternatives and weights |

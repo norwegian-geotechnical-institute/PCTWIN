@@ -50,4 +50,10 @@ options:
   tapered_tail: truncate_at_last_bin  # rate above the last bin has no scenario. truncate_at_last_bin: the budget is
                                       # balanced over the modelled bins; not_modelled: the moment above the last bin is lost
   xi_min_magnitude: first_bin_lower_edge   # decision 8
-  footprints: segment_fraction_approximation   # decision 9
+  footprints: segment_fraction_approximation   # decision 9. How the rate of a bin is placed among rupture positions:
+                                      #   segment_fraction_approximation  from the fraction of each rupture in each segment (version 1.0)
+                                      #   estimated   from footprints grown around the initiation triangle to the area of the scaling law
+                                      #   from_file   from footprints reduced from the slip files (tools/reduce_slip_files.py; data/README.md)
+  footprint_area:                     # median rupture area of each scaling law, log10(A km2) = a + b Mw; used by `estimated` only
+    "01": [-3.476, 0.952]             # Strasser et al. (2010), interface
+    "02": [-3.292, 0.949]             # Thingbaijam et al. (2017), subduction interface

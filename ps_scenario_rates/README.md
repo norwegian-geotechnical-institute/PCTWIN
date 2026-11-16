@@ -55,6 +55,7 @@ python scripts/run_all.py
 | `config/` | `logic_tree.yaml` (levels, weights, options) and `zones.yaml` (zone and segment values). Every modelling choice is set here. |
 | `ptha_rates/` | The code, one module per task. |
 | `scripts/` | `run_all.py`, `clean.py`, one run script per step (`run_B<n>_<name>.py`) and the sensitivity test (`sens_coupling.py`). |
+| `tools/` | `reduce_slip_files.py`: stand-alone script that reduces slip files to rupture footprints (optional; see the guide, end of section 5). |
 | `tests/` | Unit tests on small synthetic cases with known answers. |
 | `products/<step>/` | What each step produces and later steps read. Kept in the repository so the rates can be used without the input data. |
 | `checks/<step>/` | Written by every run, not kept in the repository: `report.md` per step and `INDEX.md` listing every check with its result. |
