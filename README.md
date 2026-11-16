@@ -8,7 +8,7 @@ The repository brings the pieces developed across the work package (source model
 
 | Step of the workflow | Status | Where |
 |---|---|---|
-| 1. Source model and scenario set | Done by the scenario provider (meshes, scenarios, rupture fractions) | inputs, see `ps_scenario_rates/data/README.md` |
+| 1. Source model and scenario set | Done | inputs, see `ps_scenario_rates/data/README.md` |
 | 2. Epistemic model / logic tree | Sunda: first run done | `ps_scenario_rates/` |
 | 3. MFD and annual rates per magnitude bin | Sunda: first run done | `ps_scenario_rates/` |
 | 4. Rates of the aleatory realisations (position, scaling sample, slip) | Sunda: first run done | `ps_scenario_rates/` |
