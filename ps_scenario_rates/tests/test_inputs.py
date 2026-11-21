@@ -21,6 +21,13 @@ class TestInputs(unittest.TestCase):
         np.testing.assert_allclose(b.mw_upper, [6.75, 7.5, 8.5])
         np.testing.assert_allclose(b.m0_centre_nm, 10 ** (1.5 * b.mw_centre + 9.1))
 
+    def test_bin_table_provider(self):
+        b = inputs.bin_table(np.array([65000, 68012, 95075]), "provider")
+        np.testing.assert_allclose(b.mw_lower, [6.3383, 6.6724, 9.4992])
+        np.testing.assert_allclose(b.mw_upper, [6.6724, 6.9367, 9.5162])
+        with self.assertRaises(ValueError):
+            inputs.bin_table(np.array([65000, 66000]), "provider")
+
     def test_counts_and_split(self):
         # one position with two scaling samples: sample 0 has three slip realisations, sample 1 has one;
         # a second position with a single scenario

@@ -1,7 +1,7 @@
 # Scenario rates (sunda)
 
-Version 1.0. Annual rates of the PS scenarios of rigidity model 00 (homogeneous) on the 480 branches of the logic tree.
-Scenarios of the other rigidity models have no rate in this run.
+Version 1.1. Annual rates of the PS scenarios on the 240 branches of the logic tree, for the rigidity models
+listed in checks/B7_rates (decision 27). Scenarios of the other rigidity models have no rate in this run.
 
 ## Mean rates
 

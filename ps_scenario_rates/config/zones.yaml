@@ -20,6 +20,7 @@
 sunda:
   code: sun
   rigidity_pa: 3.0e+10
+  utm_zone: 46                   # UTM zone of the scenario provider's area calculation (decision 29)
   fractions_csv: Sunda_rupture_fractions.csv
   triangles: Sunda_triangles.txt
   catalogue: Seismicity Distribution_Sunda.csv
@@ -47,6 +48,7 @@ sunda:
 makran:
   code: mak
   rigidity_pa: 3.0e+10
+  utm_zone: 41
   fractions_csv: Makran_rupture_fractions.csv
   triangles: null             # mesh is available only as a docx; text copy to be placed in the data folder
   catalogue: null             # not in the project folder

@@ -26,8 +26,9 @@ def main(zones):
                   None, "; ".join(miss) or "none")
         t = branches.branch_table(cfg, zone)
         t.to_csv(os.path.join(out, f"branch_table_{zone}.csv"), index=False)
-        nb = lv["b_value"]["n"]
-        n_seis = len(lv["segmentation"]) * len(lv["mfd_form"]) * nb * len(lv["mmax"])
+        nb = len(branches.b_values(tree)); ev = tree["event_tree"]; al = ev.get("as_level", [])
+        n_ev = (len(config.active(ev["scaling_law"])) if "scaling_law" in al else 1) * (int(ev.get("n_scaling_samples", 10)) if "scaling_sample" in al else 1)
+        n_seis = len(lv["segmentation"]) * len(lv["mfd_form"]) * nb * len(lv["mmax"]) * n_ev
         n_geo = n_seis * len(lv["coupling"]["weights"])
         rep.check(f"{zone}: number of branches", "Must equal the product of the numbers of alternatives",
                   (t.rate_source == "geodynamic").sum() == n_geo and (t.rate_source == "seismic").sum() == n_seis,
@@ -46,7 +47,7 @@ def main(zones):
                   bool(np.argmax(bw) == np.argmin(np.abs(bv - z["whole_zone"]["b"])) and (bw > 0).all()),
                   "; ".join(f"{b:.3f}: {w:.3f}" for b, w in zip(bv, bw)))
         cl = {s["name"]: branches.coupling_levels(s["coupling"], tree) for s in z["segments"] if s["coupling"] is not None}
-        rep.check(f"{zone}: coupling levels", "Preferred -/+ offset within floor and ceiling", None,
+        rep.check(f"{zone}: coupling levels", "Low / preferred / high from the coupling rule, within floor and ceiling (decision 25)", None,
                   "; ".join(f"{k}: {v['low']:.2f}/{v['preferred']:.2f}/{v['high']:.2f}" for k, v in cl.items()) or "no coupling values")
         dup = [k for k, v in cl.items() if len({v['low'], v['preferred'], v['high']}) < 3]
         rep.check(f"{zone}: segments with fewer than three distinct coupling levels",

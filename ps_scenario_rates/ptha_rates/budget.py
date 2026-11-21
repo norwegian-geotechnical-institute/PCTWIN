@@ -1,7 +1,7 @@
 """Step B2. Loading (slip-deficit rate) on every triangle and the moment budget."""
 import numpy as np
 import pandas as pd
-from . import branches
+from . import branches, rigidity
 
 LEVELS = ["low", "preferred", "high"]
 
@@ -12,7 +12,10 @@ def loading_table(tri, zone_cfg, tree):
     used as given, with no projection onto the interface (decision 6)."""
     if tree["options"]["convergence_projection"] != "none":
         raise NotImplementedError("only convergence_projection: none is implemented")
-    out = tri[["id", "segment", "area_km2"]].copy()
+    out = tri[["id", "segment", "area_km2"] + (["depth_km"] if "depth_km" in tri else [])].copy()
+    if tree["options"].get("budget_area", "mesh") == "provider_utm":    # decision 29: the provider's areas, so that the budget
+        out["area_true_km2"] = out.area_km2                            # and the named moments of the scenarios share one area
+        out["area_km2"] = tri.area_utm_km2.to_numpy()
     conv = np.array([s["convergence"] for s in zone_cfg["segments"]])[tri.segment.to_numpy() - 1]
     out["convergence_mm_yr"] = conv
     for lev in LEVELS:
@@ -22,9 +25,12 @@ def loading_table(tri, zone_cfg, tree):
     return out
 
 
-def budget_table(load, zone_cfg):
+def budget_table(load, zone_cfg, tree=None):
     """Moment budget (N m/yr) = rigidity x sum of area x loading, per segment and for the whole
-    zone (the sum of its segments), for each coupling level. Also the budget with coupling 1."""
+    zone (the sum of its segments), for each coupling level. Also the budget with coupling 1.
+    The budget columns use the homogeneous rigidity (rigidity_pa). With tree given, also
+    rigidity_factor_<model>_<level> = budget with that rigidity model's mu(depth) / budget with rigidity_pa,
+    for every model in options: rigidity: models (decision 27). Geodynamic bin rates scale with it."""
     mu = zone_cfg["rigidity_pa"]
     area_m2 = load.area_km2.to_numpy() * 1e6
     rows = []
@@ -45,7 +51,16 @@ def budget_table(load, zone_cfg):
         whole[f"loading_{lev}_mm_yr"] = (t[f"loading_{lev}_mm_yr"] * t.area_km2).sum() / t.area_km2.sum()
         whole[f"coupling_{lev}"] = whole[f"budget_{lev}_nm_yr"] / t.budget_uncoupled_nm_yr.sum()
     whole["budget_uncoupled_nm_yr"] = t.budget_uncoupled_nm_yr.sum()
-    return pd.concat([pd.DataFrame([whole]), t], ignore_index=True)
+    out = pd.concat([pd.DataFrame([whole]), t], ignore_index=True)
+    if tree is not None and "rigidity" in tree["options"]:
+        seg = load.segment.to_numpy()
+        for model in tree["options"]["rigidity"]["models"]:
+            ratio = rigidity.mu_pa(model, load.depth_km.to_numpy(), zone_cfg, tree) / mu
+            for lev in LEVELS:
+                m0 = area_m2 * load[f"loading_{lev}_mm_yr"].to_numpy()
+                f = [(ratio * m0).sum() / m0.sum()] + [(ratio * m0)[seg == k].sum() / m0[seg == k].sum() for k in range(1, len(zone_cfg["segments"]) + 1)]
+                out[f"rigidity_factor_{model}_{lev}"] = f
+    return out
 
 
 def mw_of(m0):

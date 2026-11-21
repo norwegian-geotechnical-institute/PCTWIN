@@ -110,8 +110,8 @@ def main(zone, overrides):
     thr = catalogue.THRESHOLDS; obs = [int((cat.mw >= t).sum()) for t in thr]
     obs0 = float((cat.mw >= bins.mw_lower.iloc[0]).sum()) / (cat.year.max() - cat.year.min() + 1)
     L = [f"# Sensitivity test: coupling {', '.join(f'{k} = {v:g}' for k, v in overrides.items())} ({zone})", "",
-         "Nothing in the configuration or in the products of steps B0 to B4 was changed. Low and high coupling follow the usual rule "
-         "(preferred -/+ 0.2, within 0.1 to 1).", "", "## Preferred coupling and budget", "",
+         "Nothing in the configuration or in the products of steps B0 to B4 was changed. Low and high coupling follow the coupling rule "
+         "of the logic tree (decision 25).", "", "## Preferred coupling and budget", "",
          "| Unit | Coupling now | Coupling in test | Budget now (N m/yr) | Budget in test | Ratio |", "|---|---|---|---|---|---|"]
     L += [f"| {u} | {r.coupling_present:.2f} | {r.coupling_test:.2f} | {r.budget_preferred_present:.3e} | {r.budget_preferred_test:.3e} | {r.ratio:.2f} |" for u, r in B.iterrows()]
     L += ["", f"## Events in {cat.year.max() - cat.year.min() + 1} years, weighted mean over branches", "",
@@ -135,9 +135,10 @@ def main(zone, overrides):
     else:                                                   # with rupture footprints the segmented shares change with the loading as well
         fp = footprints.load(shares.footprint_path(zone))
         tv = {k: shares.triangle_values(loads[k], par, buds[k].reset_index(), names) for k in ("present", "test")}
-        assert np.allclose(shares.unconstrained_shares_fp(pos, fp, tv["present"]), D["U"]), "present shares are not reproduced"
-        D2 = dict(D, R=Rs["test"], U=shares.unconstrained_shares_fp(pos, fp, tv["test"]),
-                  X=shares.segmented_shares_fp(pos, fp, tv["test"], tri.segment.to_numpy(), n_seg, cfg["tree"]["options"]["crossing_penalty"])[0])
+        ratio = shares.mu_ratio(cfg, zone, tri, np.unique(pos.rig))
+        assert np.allclose(shares.unconstrained_shares_fp(pos, fp, tv["present"], ratio), D["U"]), "present shares are not reproduced"
+        D2 = dict(D, R=Rs["test"], U=shares.unconstrained_shares_fp(pos, fp, tv["test"], ratio),
+                  X=shares.segmented_shares_fp(pos, fp, tv["test"], tri.segment.to_numpy(), n_seg, cfg["tree"]["options"]["crossing_penalty"], ratio)[0])
     geo = (table.rate_source == "geodynamic").to_numpy()
     PMs, PMg, PMg2 = rates.mean_position_rates(D, ~geo), rates.mean_position_rates(D, geo), rates.mean_position_rates(D2, geo)
     tri_i = tri.set_index("id"); kb = D["pos"].bin.to_numpy(); F = pos[[f"seg_{i + 1}" for i in range(n_seg)]].to_numpy()

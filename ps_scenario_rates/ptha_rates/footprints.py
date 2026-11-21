@@ -3,7 +3,7 @@
 A footprint table is a sparse matrix position x triangle held as three arrays:
     indptr   start of each position's entries (length = positions + 1)
     index    row of the triangle in the triangle table (0-based)
-    frac     fraction of the rupture's area on that triangle; sums to 1 for every position
+    frac     fraction of the rupture's area (or, from slip files with slip, of its moment) on that triangle; sums to 1 for every position
 Two sources (option `footprints` in config/logic_tree.yaml):
     estimated   grown around the initiation triangle until the area of the scaling law is reached
     from_file   read from the files written by tools/reduce_slip_files.py from the slip files
@@ -78,11 +78,14 @@ def area_km2(fp, tri):
     return np.add.reduceat(a, fp["indptr"][:-1])
 
 
-def from_file(folder, zone_code, scen, tri, n_pos):
+def from_file(folder, zone_code, scen, tri, n_pos, mu_of=None):
     """Footprints of every position from the files written by tools/reduce_slip_files.py (one or more
     footprints_<zone>_*.npz in `folder`). Each file lists rupture geometries by scenario name with their
     triangles. A position's footprint is the mean over its scenarios, weighted by their split.
-    scen: the scenario table of step B1 (rig, mw, scal, sreal, tri, position, split)."""
+    scen: the scenario table of step B1 (rig, mw, scal, sreal, tri, position, split).
+    When the files hold slip (tools/reduce_slip_files.py --slip all) and mu_of is given, frac is the moment fraction of
+    each triangle, mu x area x mean slip (decision 27); otherwise the area fraction. mu_of(rig, rows) returns the rigidity
+    of the triangles in the given rows of tri for rigidity model rig (int)."""
     files = sorted(glob.glob(os.path.join(folder, f"footprints_{zone_code}_*.npz")))
     if not files:
         raise FileNotFoundError(f"no footprints_{zone_code}_*.npz in {folder}; see data/README.md")
@@ -97,12 +100,14 @@ def from_file(folder, zone_code, scen, tri, n_pos):
         d = np.load(f)
         k_f = key(d["rig"], d["mw"], d["scal"], d["sreal"], d["tri"])
         j = np.searchsorted(k_u, k_f); ok = (j < len(k_u)) & (k_u[np.minimum(j, len(k_u) - 1)] == k_f)
-        ip = d["indptr"]
+        ip = d["indptr"]; has_slip = "slip" in d.files and mu_of is not None
         for g in np.flatnonzero(ok):
             if seen[j[g]]:
                 continue
             seen[j[g]] = True
             t = row_of[d["triangle"][ip[g]:ip[g + 1]]]; a = area[t]
+            if has_slip:
+                a = a * d["slip"][ip[g]:ip[g + 1]] * mu_of(int(d["rig"][g]), t)
             P.append(np.full(len(t), pos_u[j[g]])); T.append(t); W.append(w_geo_pos[j[g]] * a / a.sum())
     if not seen.all():
         raise ValueError(f"{int((~seen).sum()):,} of {len(seen):,} rupture geometries have no footprint in {folder}")

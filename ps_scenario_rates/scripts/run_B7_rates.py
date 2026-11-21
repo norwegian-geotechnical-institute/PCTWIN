@@ -21,8 +21,8 @@ from ptha_rates.report import CheckReport
 
 README = """# Scenario rates ({zone})
 
-Version {version}. Annual rates of the PS scenarios of rigidity model 00 (homogeneous) on the {n_branch} branches of the logic tree.
-Scenarios of the other rigidity models have no rate in this run.
+Version {version}. Annual rates of the PS scenarios on the {n_branch} branches of the logic tree, for the rigidity models
+listed in checks/B7_rates (decision 27). Scenarios of the other rigidity models have no rate in this run.
 
 ## Mean rates
 
@@ -63,8 +63,18 @@ def main(zones):
                   "unconstrained": (t.segmentation == "unconstrained").to_numpy(), "segmented": (t.segmentation == "segmented").to_numpy()}
         PM = {g: rates.mean_position_rates(D, m) for g, m in groups.items()}
         Z = binrates.zone_bin_rates(D["R"], t)
-        active = sum(wt for wt in cfg["tree"]["event_tree"]["rigidity_model"].values())
-        expect = float((Z.sum(1) * w).sum()) * active
+        # expected total: zone total rate of each branch x sum over rigidity models of weight x rigidity factor
+        bud = pd.read_csv(os.path.join(PRODUCTS, "B2_budget", f"budget_{zone}.csv")).set_index("unit")
+        rw = config.rigidity_in_use(cfg["tree"]); expect = 0.0
+        for i, br in enumerate(t.itertuples()):
+            if br.rate_source == "seismic":
+                f = 1.0
+            elif br.segmentation == "unconstrained":
+                f = sum(v * bud.loc["whole_zone"].get(f"rigidity_factor_{k}_{br.coupling}", 1.0) for k, v in rw.items())
+            else:
+                rs = binrates.branch_bin_rates(D["R"], br)[1:].sum(1); names = D["R"]["units"][1:]
+                f = sum(v * (rs * bud.loc[names].get(f"rigidity_factor_{k}_{br.coupling}", pd.Series(1.0, index=names)).to_numpy()).sum() / rs.sum() for k, v in rw.items())
+            expect += w[i] * Z[i].sum() * f
         rep.check(f"{zone}: mean rates add up to the mean bin rates", "Sum of the mean position rates must equal the weighted mean of the zone's total rate",
                   bool(np.isclose(PM["all"].sum(), expect, rtol=1e-9)), f"{PM['all'].sum():.6f} per year against {expect:.6f}")
         sr = PM["all"][scen["position"]] * scen["split"]
@@ -98,7 +108,9 @@ def main(zones):
         with open(os.path.join(out, "README.md"), "w", encoding="utf-8") as f:
             f.write(README.format(zone=zone, code=z["code"], n_branch=len(t), version=__version__))
     rep.note("Mean rates are weighted over the branches with the weights of the branch table. No Bayesian update is applied (decision 13).")
-    rep.note("Rates are given to scenarios of rigidity model 00 only (decision 14).")
+    rw = config.rigidity_in_use(cfg["tree"]); sk = config.skipped_rigidity(cfg["tree"])
+    rep.note("Rigidity models in use, pooled with weights " + ", ".join(f"{k}: {v:g}" for k, v in rw.items()) + " (decision 27)."
+             + (f" Left out for want of footprints with slip: {', '.join(sk)}; their scenarios have no rate in this run." if sk else ""))
     return rep.write()
 
 

@@ -22,7 +22,7 @@ Makran has not been run yet; what it needs is listed in the guide.
 
 ## PS scenario rates
 
-`ps_scenario_rates/` gives every PS scenario an annual rate on each of the 480 branches of the logic tree. It is self-contained: its own configuration, code, unit tests, result tables and figures.
+`ps_scenario_rates/` gives every PS scenario an annual rate on each of the 240 branches of the logic tree. It is self-contained: its own configuration, code, unit tests, result tables and figures.
 
 - Start with `ps_scenario_rates/README.md` (how to use the rates, how to run).
 - The method, a table of every step with its limitations and planned improvements, the decisions taken and the open points are in `ps_scenario_rates/docs/guide.md`.

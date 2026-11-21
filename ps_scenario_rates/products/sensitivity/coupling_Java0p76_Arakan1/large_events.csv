@@ -1,9 +1,9 @@
 case,group,rate_first_bin_per_yr,n_ge_7.5,n_ge_8,n_ge_8.5,n_ge_9
-present,"geodynamic, unconstrained",1.725,16.32,5.497,1.773,0.441
-present,"geodynamic, segmented",2.784,24.87,7.464,1.807,0.2883
-present,seismic,1.06,12.08,4.308,1.408,0.3362
-present,all branches,1.657,16.34,5.394,1.599,0.3504
-test,"geodynamic, unconstrained",2.535,23.99,8.078,2.605,0.648
-test,"geodynamic, segmented",4.757,41.08,11.51,2.477,0.3821
-test,seismic,1.06,12.08,4.308,1.408,0.3362
-test,all branches,2.353,22.31,7.05,1.975,0.4256
+present,"geodynamic, unconstrained",1.646,15.33,5.292,1.786,0.4946
+present,"geodynamic, segmented",2.529,23.6,7.365,2.005,0.3591
+present,seismic,1.083,14.01,5.462,1.993,0.5422
+present,all branches,1.739,17.78,6.106,1.948,0.4649
+test,"geodynamic, unconstrained",2.466,22.97,7.93,2.676,0.7411
+test,"geodynamic, segmented",4.378,40.65,11.86,2.934,0.4743
+test,seismic,1.083,14.01,5.462,1.993,0.5422
+test,all branches,2.601,25.75,8.358,2.496,0.5655

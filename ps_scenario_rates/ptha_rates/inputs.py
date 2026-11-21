@@ -3,7 +3,7 @@ import os
 import zipfile
 import numpy as np
 import pandas as pd
-from . import DATA
+from . import CONFIG, DATA, projection
 
 KM_PER_DEG = 111.19
 
@@ -17,16 +17,20 @@ def fractions_handle(zone_cfg):
 
 def triangle_table(zone_cfg):
     """id, centroid (lon, lat, depth km), area (km2) and dip (deg) of every triangle.
-    Area and dip come from the three vertices on a local flat-earth projection."""
+    Area and dip come from the three vertices on a local flat-earth projection. With utm_zone in zones.yaml also
+    area_utm_km2, the area in the scenario provider's UTM projection (ptha_rates/projection.py)."""
     a = np.loadtxt(os.path.join(DATA, zone_cfg["triangles"]))
     v = a[:, 1:].reshape(-1, 3, 3)
     lat0 = np.deg2rad(v[:, :, 1].mean(axis=1))[:, None]
     P = np.stack([v[:, :, 0] * KM_PER_DEG * np.cos(lat0), v[:, :, 1] * KM_PER_DEG, np.abs(v[:, :, 2])], axis=2)
     n = np.cross(P[:, 1] - P[:, 0], P[:, 2] - P[:, 0])
     norm = np.linalg.norm(n, axis=1)
-    return pd.DataFrame({"id": a[:, 0].astype(int), "lon": v[:, :, 0].mean(1), "lat": v[:, :, 1].mean(1),
-                         "depth_km": np.abs(v[:, :, 2]).mean(1), "area_km2": 0.5 * norm,
-                         "dip_deg": np.degrees(np.arccos(np.abs(n[:, 2]) / norm))})
+    t = pd.DataFrame({"id": a[:, 0].astype(int), "lon": v[:, :, 0].mean(1), "lat": v[:, :, 1].mean(1),
+                      "depth_km": np.abs(v[:, :, 2]).mean(1), "area_km2": 0.5 * norm,
+                      "dip_deg": np.degrees(np.arccos(np.abs(n[:, 2]) / norm))})
+    if zone_cfg.get("utm_zone"):                  # area as the scenario provider computes it (decision 29)
+        t["area_utm_km2"] = projection.triangle_area_utm_km2(v, zone_cfg["utm_zone"])
+    return t
 
 
 def parse_names(fn):
@@ -58,14 +62,24 @@ def read_scenarios(zone_cfg, rigidity_models, chunk=1_000_000):
 
 
 def bin_table(mw_int, rule="midpoints"):
-    """Magnitude bins from the bin centres found in the data. Edges are midpoints between
-    centres; the first and last bins are made symmetric about their centres."""
-    if rule != "midpoints":
-        raise ValueError("only 'midpoints' bin edges are implemented")
+    """Magnitude bins of the named magnitudes found in the data (Mw x 1e4).
+    midpoints: edges are midpoints between centres; the first and last bins are symmetric about their centres.
+    provider:  edges from config/magnitude_intervals.csv, the intervals of the scenario provider (decision 22);
+               every named magnitude must be the centre of one interval."""
     c = np.sort(np.unique(mw_int)) / 1e4
-    mid = (c[:-1] + c[1:]) / 2
-    lo = np.r_[c[0] - (mid[0] - c[0]), mid]
-    hi = np.r_[mid, c[-1] + (c[-1] - mid[-1])]
+    if rule == "midpoints":
+        mid = (c[:-1] + c[1:]) / 2
+        lo = np.r_[c[0] - (mid[0] - c[0]), mid]
+        hi = np.r_[mid, c[-1] + (c[-1] - mid[-1])]
+    elif rule == "provider":
+        t = pd.read_csv(os.path.join(CONFIG, "magnitude_intervals.csv"), comment="#")
+        j = np.searchsorted(t.mw_centre.to_numpy(), c)
+        ok = (j < len(t)) & np.isclose(t.mw_centre.to_numpy()[np.minimum(j, len(t) - 1)], c, atol=5e-5)
+        if not ok.all():
+            raise ValueError(f"named magnitudes without an interval in magnitude_intervals.csv: {c[~ok]}")
+        lo, hi = t.mw_lower.to_numpy()[j], t.mw_upper.to_numpy()[j]
+    else:
+        raise ValueError("bin_edges must be 'midpoints' or 'provider'")
     return pd.DataFrame({"bin": np.arange(len(c)), "mw_centre": c, "mw_lower": lo, "mw_upper": hi,
                          "m0_centre_nm": 10 ** (1.5 * c + 9.1)})
 

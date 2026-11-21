@@ -28,14 +28,17 @@ def logic_tree(cfg, zone, table, path):
     tree, z = cfg["tree"], cfg["zones"][zone]
     lv = tree["levels"]
     bv, bw = branches.b_values(tree), branches.b_weights(z["whole_zone"]["b"], tree)
-    off = lv["coupling"]["offset"]
+    c = lv["coupling"]
+    if c.get("rule", "offset") == "factor":
+        tag = {k: (f"x{f:g}" if f != 1 else "") for k, f in c["factors"].items()}
+    else:
+        tag = dict(zip(c["weights"], (f"{-c['offset']:+.1f}", "", f"{c['offset']:+.1f}")))
     cols = [("rate_source", [(LABEL[k], w) for k, w in lv["rate_source"].items()]),
             ("segmentation", [(LABEL[k], w) for k, w in lv["segmentation"].items()]),
             ("mfd_form", [(LABEL[k], w) for k, w in lv["mfd_form"].items()]),
             ("b_value", [(f"b = {b:.3f}", w) for b, w in zip(bv, bw)]),
             ("mmax", [(LABEL[k], w) for k, w in lv["mmax"].items()]),
-            ("coupling", [(f"{LABEL[k]} ({'%+.1f' % d})" if d else LABEL[k], w)
-                          for (k, w), d in zip(lv["coupling"]["weights"].items(), (-off, 0, off))])]
+            ("coupling", [(f"{LABEL[k]} ({tag[k]})" if tag[k] else LABEL[k], w) for k, w in c["weights"].items()])]
     nmax = max(len(a) for _, a in cols)
     bw_, bh, dx, dy = 2.9, 0.66, 3.3, 0.9
     fig, ax = plt.subplots(figsize=(16, 0.62 * nmax + 2.0))

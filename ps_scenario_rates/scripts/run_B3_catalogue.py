@@ -44,7 +44,7 @@ def figure(cat, par, cfg, zone, path):
     for ax in axes[:, 0]:
         ax.set_ylabel("events per year, magnitude >= Mw")
     a = z["seismic_anchor"]
-    fig.text(0.01, 0.01, f"Black: observed rate of events above the anchor magnitude (Mw {a['magnitude']:g}, since {a['start_year']}). Grey: truncated G-R for the ten b-values, anchored there.\n"
+    fig.text(0.01, 0.01, f"Black: observed rate of events above the anchor magnitude (Mw {a['magnitude']:g}, since {a['start_year']}). Grey: truncated G-R for the b-values of the logic tree, anchored there.\n"
              "Dashed: observed rate above Mc in its complete period (from 2000; 1975 for Sumba); not used for the rates.", fontsize=plotting.NOTE, va="bottom")
     fig.tight_layout(rect=(0, 0.08, 1, 1)); fig.savefig(path); plt.close(fig)
 
@@ -57,7 +57,7 @@ def main(zones):
         z = cfg["zones"][zone]
         tri = pd.read_csv(os.path.join(PRODUCTS, "B1_inputs", f"triangles_{zone}.csv"))
         cat = catalogue.load_catalogue(z, tri)
-        par = catalogue.parameter_table(cat, z)
+        par = catalogue.parameter_table(cat, z, cfg["tree"])
         seg = par[par.segment > 0]; whole = par[par.segment == 0].iloc[0]
         rep.check(f"{zone}: events in the catalogue", "Whole catalogue is read", None,
                   f"{len(cat):,} events, {cat.year.min()} to {cat.year.max()}, Mw {cat.mw.min():.2f} to {cat.mw.max():.2f}")
@@ -78,16 +78,18 @@ def main(zones):
         rep.check(f"{zone}: rate above Mc in its complete period", "For the record; not used for the rates",
                   None,
                   "; ".join(f"{u.unit}: Mc {u.mc} from {int(u.mc_start_year)}, {u.n_ge_mc:,} events in {u.years_complete} yr = {u.rate_mc_per_yr:.1f}/yr" for _, u in par.iterrows()))
-        rep.check(f"{zone}: largest observed event", "First Mmax alternative; must not exceed the area limit",
-                  bool((par.mmax_observed <= par.mmax_area_limit).all()),
-                  "; ".join(f"{u.unit}: observed {u.mmax_observed:.2f}, area limit {u.mmax_area_limit:.2f}, mean {u.mmax_mean:.2f}" for _, u in par.iterrows()))
+        o = tree["options"].get("mmax_observed", {"n_sigma": 0, "sigma": 0})
+        rep.check(f"{zone}: Mmax alternatives", f"Observed = largest event + {o['n_sigma']:g} x {o['sigma']:g} (decision 23), at most the area limit",
+                  bool((par.mmax_observed <= par.mmax_area_limit).all() and (par.mmax_observed >= par.largest_event_mw).all()),
+                  "; ".join(f"{u.unit}: largest event {u.largest_event_mw:.2f}, observed {u.mmax_observed:.2f}, area limit {u.mmax_area_limit:.2f}, mean {u.mmax_mean:.2f}" for _, u in par.iterrows()))
         rep.check(f"{zone}: whole-zone largest event is the largest of the segments", "Consistency of the two segmentation alternatives",
                   bool(np.isclose(whole.mmax_observed, seg.mmax_observed.max())), f"{whole.mmax_observed:.2f}")
         rep.check(f"{zone}: large events since {cat.year.min()}", "Used later to compare modelled with observed numbers", None,
                   "; ".join(f"Mw>={t:g}: {int(whole[f'n_ge_{t:g}'])}" for t in catalogue.THRESHOLDS))
         bv = branches.b_values(tree); bw = branches.b_weights(z["whole_zone"]["b"], tree)
-        rep.check(f"{zone}: b-values of the logic tree", "Ten values over a fixed range (decision 2)", bool(len(bv) == tree["levels"]["b_value"]["n"]),
-                  f"{bv[0]:.3f} to {bv[-1]:.3f} in steps of {bv[1] - bv[0]:.4f}")
+        rep.check(f"{zone}: b-values of the logic tree", "Values and weights of the b-value level (decisions 2 and 24); weighted mean",
+                  bool(len(bv) == len(bw) and np.all(np.diff(bv) > 0)),
+                  f"{bv[0]:.3f} to {bv[-1]:.3f} in steps of {bv[1] - bv[0]:.4f}; weighted mean {(bv * bw).sum():.3f}")
         # how well does each unit's own catalogue b reproduce the observed number of M >= 6 events in the complete period?
         txt = []
         for _, u in par.iterrows():

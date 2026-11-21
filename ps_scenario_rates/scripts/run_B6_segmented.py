@@ -34,8 +34,9 @@ def main(zones):
             load = pd.read_csv(os.path.join(PRODUCTS, "B2_budget", f"loading_{zone}.csv"))
             par = pd.read_csv(os.path.join(PRODUCTS, "B3_catalogue", f"parameters_{zone}.csv")); bud = pd.read_csv(os.path.join(PRODUCTS, "B2_budget", f"budget_{zone}.csv"))
             fp = footprints.load(shares.footprint_path(zone)); tv = shares.triangle_values(load, par, bud, names)
-            make = lambda p: shares.segmented_shares_fp(pos, fp, tv, tri.segment.to_numpy(), n_seg, p)[0]
-            X, F = shares.segmented_shares_fp(pos, fp, tv, tri.segment.to_numpy(), n_seg, pen); layers = list(X)
+            ratio = shares.mu_ratio(cfg, zone, tri, np.unique(pos.rig))     # loading x mu(depth) ratio for each rigidity model (decision 27)
+            make = lambda p: shares.segmented_shares_fp(pos, fp, tv, tri.segment.to_numpy(), n_seg, p, ratio)[0]
+            X, F = shares.segmented_shares_fp(pos, fp, tv, tri.segment.to_numpy(), n_seg, pen, ratio); layers = list(X)
         cell = pos.cell.to_numpy(); ncell = cell.max() + 1; X0 = layers[0]
         tots = [np.column_stack([np.bincount(cell, weights=L[:, g], minlength=ncell) for g in range(n_seg)]) for L in layers]; tot = tots[0]
         rep.check(f"{zone}: shares on a segment sum to 1 or 0 in every cell", "1 where some rupture of the cell touches the segment, 0 where none does",

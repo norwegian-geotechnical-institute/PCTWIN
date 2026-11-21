@@ -1,6 +1,8 @@
 """Step B7. Annual rate of every rupture position and scenario on any branch.
 
-    position rate = pooled weight (rigidity model x scaling law)
+    position rate = pooled weight (rigidity model x scaling law; decision 4)
+                    x  rigidity factor of the position's model (geodynamic branches; budget with that model's
+                       mu(depth) / budget with the homogeneous rigidity; decision 27)
                     x  bin rate of the branch
                     x  share of the position                     (unconstrained branches)
                   = pooled weight x sum over segments g of
@@ -20,23 +22,60 @@ def load(zone, cfg=None):
     R = dict(np.load(os.path.join(P, "B4_bin_rates", f"bin_rates_{zone}.npz"), allow_pickle=False))
     R = {k: (v.tolist() if k in ("units", "variants", "forms", "mmax") else v) for k, v in R.items()}
     S = np.load(os.path.join(P, "B5_shares", f"shares_{zone}.npz"), allow_pickle=False)
-    ev = cfg["tree"]["event_tree"]
+    ev = cfg["tree"]["event_tree"]; rig_w = config.rigidity_in_use(cfg["tree"])
     pos = pd.DataFrame({k: S[k] for k in ("position", "rig", "scal", "bin", "tri", "cell", "m0_nm", "n_scenarios")})
-    pooled = np.array([ev["rigidity_model"][f"{r:02d}"] * ev["scaling_law"][f"{s:02d}"] for r, s in zip(pos.rig, pos.scal)])
-    return dict(zone=zone, cfg=cfg, R=R, pos=pos, pooled=pooled, U=S["share_unconstrained"],
+    w_rig = np.array([rig_w.get(f"{r:02d}", 0.0) for r in pos.rig])
+    w_scal = np.array([ev["scaling_law"][f"{s:02d}"] for s in pos.scal])
+    bud = pd.read_csv(os.path.join(P, "B2_budget", f"budget_{zone}.csv")).set_index("unit")
+    units = R["units"]
+    fac = {}                                                     # level -> unit x position
+    for lev in ("low", "preferred", "high"):
+        fac[lev] = np.ones((len(units), len(pos)))
+        for r in np.unique(pos.rig):
+            col = f"rigidity_factor_{r:02d}_{lev}"
+            if col in bud:
+                fac[lev][:, (pos.rig == r).to_numpy()] = bud.loc[units, col].to_numpy()[:, None]
+    return dict(zone=zone, cfg=cfg, R=R, pos=pos, w_rig=w_rig, w_scal=w_scal, pooled=w_rig * w_scal, rig_factor=fac, U=S["share_unconstrained"],
                 X=np.load(os.path.join(P, "B6_segmented", f"shares_segmented_{zone}.npz"))["share_segmented"],
                 table=pd.read_csv(os.path.join(P, "B0_config", f"branch_table_{zone}.csv")))
+
+
+def pooled_weights(D, branch):
+    """Pooled weight of every position on one branch: rigidity model x scaling law. When the scaling law is a
+    logic-tree level (event_tree: as_level, decision 28) the branch keeps only the positions of its own law."""
+    law = getattr(branch, "scaling_law", "pooled")
+    if law in ("pooled", None) or (isinstance(law, float) and np.isnan(law)):
+        return D["pooled"]
+    return D["w_rig"] * (D["pos"].scal.to_numpy() == int(law))
 
 
 def position_rates(D, branch):
     """Annual rate of every position on one branch (a row of the branch table)."""
     r = binrates.branch_bin_rates(D["R"], branch)            # unit x bin
     k = D["pos"].bin.to_numpy()
+    w = pooled_weights(D, branch)
+    geo = branch.rate_source == "geodynamic"
+    F = D["rig_factor"][branch.coupling] if geo else None   # unit x position
     if branch.segmentation == "unconstrained":
         v = shares.VARIANTS.index(binrates.variant_of(branch.rate_source, branch.coupling))
-        return D["pooled"] * r[0][k] * D["U"][v]
+        return w * r[0][k] * D["U"][v] * (F[0] if geo else 1.0)
     X = D["X"] if D["X"].ndim == 2 else D["X"][shares.VARIANTS.index(binrates.variant_of(branch.rate_source, branch.coupling))]   # per variant with footprints
-    return D["pooled"] * (r[1:][:, k].T * X).sum(axis=1)
+    seg = r[1:][:, k].T * X                                  # position x segment
+    if geo:
+        seg = seg * F[1:].T
+    return w * seg.sum(axis=1)
+
+
+def sample_split(scen, branch):
+    """Split of each scenario on a branch. Pooled samples (default): 1 / (samples x slip realisations at the
+    position). With scaling_sample as a level (decision 28) the branch's sample takes the whole position rate,
+    shared over its slip realisations; a position without that sample keeps the pooled split."""
+    k = getattr(branch, "scaling_sample", "pooled")
+    if k in ("pooled", None) or (isinstance(k, float) and np.isnan(k)):
+        return scen["split"]
+    mine = scen["sreal"] == int(k)
+    n_mine = np.bincount(scen["position"], weights=mine, minlength=int(scen["position"].max()) + 1)[scen["position"]]
+    return np.where(n_mine > 0, mine / np.maximum(n_mine, 1), scen["split"])
 
 
 def mean_position_rates(D, mask=None):
@@ -60,4 +99,4 @@ def scenario_rates(zone, branch_id):
     D = load(zone)
     br = D["table"][D["table"].branch_id == branch_id].iloc[0]
     scen = np.load(os.path.join(PRODUCTS, "B1_inputs", f"scenarios_{zone}.npz"))
-    return position_rates(D, br)[scen["position"]] * scen["split"]
+    return position_rates(D, br)[scen["position"]] * sample_split(scen, br)

@@ -37,13 +37,16 @@ def zone_section(zone, cfg):
         L += [f"Checks of this run: {txt.count('| PASS |')} passed, {txt.count('| FAIL |')} failed, {txt.count('| INFO |')} reported for information (`checks/INDEX.md`).", ""]
 
     L += ["### Configuration used", "", f"Placement of the rate among rupture positions (`footprints`): {tree['options']['footprints'].replace('_', ' ')}.", "",
+          "Rigidity models in use (pooled): " + ", ".join(f"{k} {v:g}" for k, v in config.rigidity_in_use(tree).items())
+          + (f"; left out for want of footprints with slip: {', '.join(config.skipped_rigidity(tree))}" if config.skipped_rigidity(tree) else "") + ".", "",
           "Weights of the logic tree (`config/logic_tree.yaml`):", ""]
     bv, bw = branches.b_values(tree), branches.b_weights(z["whole_zone"]["b"], tree)
     rows = [[k.replace("_", " "), ", ".join(f"{a.replace('_', ' ')} {v:g}" for a, v in lv[k].items())] for k in ("rate_source", "segmentation", "mfd_form", "mmax")]
     rows.insert(3, ["b-value", ", ".join(f"{b:.2f}: {x:.3f}" for b, x in zip(bv, bw))])
     rows.append(["coupling (geodynamic)", ", ".join(f"{a} {v:.3f}" for a, v in lv["coupling"]["weights"].items())])
     L += table(["Level", "Alternatives and weights"], rows)
-    L += ["Zone and segment values (`config/zones.yaml`; Mmax observed from the catalogue):", ""]
+    L += ["Zone and segment values (`config/zones.yaml`; Mmax observed = largest event in the catalogue + "
+          f"{tree['options'].get('mmax_observed', {}).get('n_sigma', 0) * tree['options'].get('mmax_observed', {}).get('sigma', 0):g}, at most the area limit):", ""]
     L += table(["Unit", "b", "Coupling low / preferred / high", "Convergence (mm/yr)", "Mmax observed / area limit / mean", f"Events of Mw >= {par.anchor_mw.iloc[0]:g} since {int(par.anchor_start_year.iloc[0])}"],
                [[u.replace("_", " "), f"{par.b_catalogue[u]:.3f}", f"{bud.coupling_low[u]:.3g} / {bud.coupling_preferred[u]:.3g} / {bud.coupling_high[u]:.3g}", f"{bud.convergence_mm_yr[u]:.0f}",
                  f"{par.mmax_observed[u]:.1f} / {par.mmax_area_limit[u]:.1f} / {par.mmax_mean[u]:.2f}", int(par.n_ge_anchor[u])] for u in ["whole_zone"] + names])

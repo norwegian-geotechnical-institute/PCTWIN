@@ -38,13 +38,18 @@ def main(zones):
             tri = pd.read_csv(os.path.join(PRODUCTS, "B1_inputs", f"triangles_{zone}.csv"))
             load = pd.read_csv(os.path.join(PRODUCTS, "B2_budget", f"loading_{zone}.csv"))
             assert (load.id.to_numpy() == tri.id.to_numpy()).all()
+            need = [k for k in config.rigidity_in_use(cfg["tree"]) if k in cfg["tree"]["options"].get("rigidity", {}).get("needs_footprints", [])]
+            if mode == "from_file" and need:
+                rep.check(f"{zone}: footprint files hold slip", f"Rigidity model(s) {need} are placed by moment under the footprint (decision 27)",
+                          shares.footprint_files_have_slip(cfg, zone), "run tools/reduce_slip_files.py with --slip all")
             fp = shares.get_footprints(cfg, zone, tri, pos, bins, scen)
             footprints.save(shares.footprint_path(zone), fp)
             tv = shares.triangle_values(load, par.reset_index(), bud.reset_index(), names)
-            U_approx, U = U, shares.unconstrained_shares_fp(pos, fp, tv)
+            ratio = shares.mu_ratio(cfg, zone, tri, np.unique(pos.rig))
+            U_approx, U = U, shares.unconstrained_shares_fp(pos, fp, tv, ratio)
         cell = pos.cell.to_numpy(); ncell = cell.max() + 1
         ev = cfg["tree"]["event_tree"]
-        n_expected = len(bins) * sum(w > 0 for w in ev["scaling_law"].values()) * sum(w > 0 for w in ev["rigidity_model"].values())
+        n_expected = len(bins) * sum(w > 0 for w in ev["scaling_law"].values()) * len(config.rigidity_in_use(cfg["tree"]))
         rep.check(f"{zone}: positions", "One row per rigidity model + scaling law + magnitude bin + initiation triangle", len(pos) == scen["position"].max() + 1,
                   f"{len(pos):,} positions from {len(scen['position']):,} scenarios")
         rep.check(f"{zone}: every bin has positions for every scaling law", "Otherwise part of a bin's rate would have no scenario to go to",

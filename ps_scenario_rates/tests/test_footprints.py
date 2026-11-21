@@ -53,7 +53,8 @@ class TestFootprints(unittest.TestCase):
 
     def test_position_rates_take_the_shares_of_the_variant(self):
         X = np.zeros((4, 2, 1)); X[0, :, 0] = [1, 0]; X[2, :, 0] = [0, 1]
-        D = dict(R=dict(rate=np.ones((2, 4, 1, 1, 1, 1)), variants=shares.VARIANTS, forms=["f"], mmax=["m"]), pos=pd.DataFrame({"bin": [0, 0]}), pooled=np.ones(2), U=None, X=X)
+        D = dict(R=dict(rate=np.ones((2, 4, 1, 1, 1, 1)), variants=shares.VARIANTS, forms=["f"], mmax=["m"]), pos=pd.DataFrame({"bin": [0, 0]}), pooled=np.ones(2), U=None, X=X,
+                 rig_factor={"preferred": np.ones((2, 2))})
         br = lambda src, c: pd.Series(dict(rate_source=src, coupling=c, segmentation="segmented", mfd_form="f", b_index=1, mmax="m"))
         np.testing.assert_allclose(rates.position_rates(D, br("seismic", "none")), [1, 0])
         np.testing.assert_allclose(rates.position_rates(D, br("geodynamic", "preferred")), [0, 1])
@@ -69,6 +70,30 @@ class TestFootprints(unittest.TestCase):
             np.testing.assert_array_equal(fp["index"], [0, 1]); np.testing.assert_allclose(fp["frac"], [0.75, 0.25])
             scen["sreal"] = np.array([0, 2])
             self.assertRaises(ValueError, footprints.from_file, d, "syn", scen, self.tri, 1)
+
+    def test_from_file_with_slip_weights_by_moment(self):
+        # one geometry on triangles 1 and 2 with slip 3 m and 1 m; equal areas in the strip -> moment fractions 0.75 / 0.25
+        scen = dict(rig=np.array([1]), mw=np.array([70000]), scal=np.array([1]), sreal=np.array([0]), tri=np.array([1]),
+                    position=np.array([0]), split=np.array([1.0]))
+        with tempfile.TemporaryDirectory() as d:
+            np.savez(os.path.join(d, "footprints_syn_01.npz"), rig=[1], mw=[70000], scal=[1], sreal=[0], tri=[1],
+                     indptr=[0, 2], triangle=[1, 2], slip=np.array([3.0, 1.0], np.float32), n_real=[1])
+            a = self.tri.area_km2.to_numpy()[:2]
+            fp = footprints.from_file(d, "syn", scen, self.tri, 1, mu_of=lambda rig, rows: np.full(len(rows), 3e10))
+            np.testing.assert_allclose(fp["frac"], a * [3, 1] / (a * [3, 1]).sum(), rtol=1e-6)
+            fp = footprints.from_file(d, "syn", scen, self.tri, 1)          # no rigidity given: area fractions
+            np.testing.assert_allclose(fp["frac"], a / a.sum(), rtol=1e-6)
+
+    def test_mu_ratio_weights_geodynamic_shares_only(self):
+        # two positions of rigidity model 01 in one cell, on triangles 1 and 3; equal loading; mu twice as high on triangle 3
+        pos = pd.DataFrame({"position": [0, 1], "cell": 0, "rig": [1, 1]})
+        fp = dict(indptr=np.array([0, 1, 2]), index=np.array([0, 2]), frac=np.array([1.0, 1.0], np.float32))
+        tv = {v: np.ones(len(self.tri)) for v in shares.VARIANTS}
+        q = np.ones(len(self.tri)); q[2] = 2.0
+        U = shares.unconstrained_shares_fp(pos, fp, tv, {1: q})
+        np.testing.assert_allclose(U[0], [0.5, 0.5])                       # seismic: not weighted by rigidity
+        np.testing.assert_allclose(U[2], [1 / 3, 2 / 3])                   # geodynamic: weighted by mu
+        np.testing.assert_allclose(shares.unconstrained_shares_fp(pos, fp, tv, {1: np.ones(len(self.tri))}), shares.unconstrained_shares_fp(pos, fp, tv))
 
 
 if __name__ == "__main__":

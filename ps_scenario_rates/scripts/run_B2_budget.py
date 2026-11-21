@@ -24,11 +24,11 @@ def main(zones):
         z = cfg["zones"][zone]
         tri = pd.read_csv(os.path.join(PRODUCTS, "B1_inputs", f"triangles_{zone}.csv"))
         load = budget.loading_table(tri, z, tree)
-        t = budget.budget_table(load, z)
+        t = budget.budget_table(load, z, tree)
         seg, whole = t[t.unit != "whole_zone"], t[t.unit == "whole_zone"].iloc[0]
         c = tree["levels"]["coupling"]
         cc = load[[f"coupling_{l}" for l in budget.LEVELS]].to_numpy()
-        rep.check(f"{zone}: coupling within floor and ceiling", "Decision 3: preferred -/+ 0.2, kept within 0.1 to 1",
+        rep.check(f"{zone}: coupling within floor and ceiling", f"Decision 25: low / preferred / high from the coupling rule, kept within {c['floor']:g} to {c['ceiling']:g}",
                   bool((cc >= c["floor"] - 1e-12).all() and (cc <= c["ceiling"] + 1e-12).all()), f"{cc.min():.2f} to {cc.max():.2f}")
         rep.check(f"{zone}: low <= preferred <= high on every triangle", "The three levels must be ordered",
                   bool((cc[:, 0] <= cc[:, 1]).all() and (cc[:, 1] <= cc[:, 2]).all()), f"{len(load):,} triangles")
@@ -38,8 +38,14 @@ def main(zones):
         direct = z["rigidity_pa"] * (load.area_km2 * 1e6 * load.loading_preferred_mm_yr * 1e-3).sum()
         rep.check(f"{zone}: budget recomputed directly from the triangles", "Independent sum over all triangles",
                   bool(np.isclose(direct, whole.budget_preferred_nm_yr)), f"{direct:.4e} N m/yr")
-        rep.check(f"{zone}: area in the budget equals the mesh area", "No triangle left out", bool(np.isclose(whole.area_km2, tri.area_km2.sum())),
+        acol = "area_utm_km2" if tree["options"].get("budget_area", "mesh") == "provider_utm" else "area_km2"
+        rep.check(f"{zone}: area in the budget equals the mesh area", f"No triangle left out ({acol}; decision 29)", bool(np.isclose(whole.area_km2, tri[acol].sum())),
                   f"{whole.area_km2:,.0f} km2")
+        if "area_utm_km2" in tri:
+            g = tri.groupby("segment_name", sort=False)[["area_km2", "area_utm_km2"]].sum()
+            rep.check(f"{zone}: provider's UTM area / true area", "Issue H1: the UTM projection of the provider stretches areas away from its central meridian", None,
+                      "; ".join(f"{k} {r.area_utm_km2 / r.area_km2:.3f}" for k, r in g.iterrows()) + f"; whole zone {tri.area_utm_km2.sum() / tri.area_km2.sum():.3f}"
+                      + f". Used in the budget: {acol}")
         for _, r in seg.iterrows():
             ref = next(s for s in z["segments"] if s["name"] == r.unit).get("ref_cs")
             ours = [r[f"loading_{l}_mm_yr"] for l in budget.LEVELS]
@@ -62,7 +68,8 @@ def main(zones):
         rep.check(f"{zone}: segments with identical coupling levels", "Their geodynamic branches coincide", None, ", ".join(dup) or "none")
         load.round(6).to_csv(os.path.join(out, f"loading_{zone}.csv"), index=False)
         t.to_csv(os.path.join(out, f"budget_{zone}.csv"), index=False, float_format="%.6g")
-    rep.note(f"Rigidity {cfg['zones'][zones[0]]['rigidity_pa'] / 1e9:.0f} GPa throughout: the first run uses the homogeneous rigidity model only (decision 14).")
+    rep.note(f"Budget columns use the homogeneous rigidity of {cfg['zones'][zones[0]]['rigidity_pa'] / 1e9:.0f} GPa. rigidity_factor_<model>_<level> scales them to the "
+             "mu(depth) of each rigidity model (decision 27); the geodynamic rates of a model's scenarios are scaled by it.")
     rep.note("Coupling and convergence are constant within a segment (values of Table 1). Convergence is used as given (decision 6). No edge correction.")
     return rep.write()
 

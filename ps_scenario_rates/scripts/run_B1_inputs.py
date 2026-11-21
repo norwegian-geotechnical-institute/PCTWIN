@@ -25,7 +25,8 @@ def main(zones):
     cfg = config.load()
     out = os.path.join(PRODUCTS, "B1_inputs"); os.makedirs(out, exist_ok=True)
     rep = CheckReport("B1_inputs", "frozen input tables")
-    models = [int(k) for k in config.active(cfg["tree"]["event_tree"]["rigidity_model"])]
+    models = [int(k) for k in config.rigidity_in_use(cfg["tree"])]
+    skipped = config.skipped_rigidity(cfg["tree"])
     for zone in zones:
         z = cfg["zones"][zone]; n_seg = len(z["segments"]); seg_cols = [f"seg_{i + 1}" for i in range(n_seg)]
         tri = inputs.triangle_table(z)
@@ -40,7 +41,7 @@ def main(zones):
         # ---- checks
         rep.check(f"{zone}: rows in the v2 fractions file", "The file read must be the v2 file that was checked",
                   n_all == V2_ROWS[zone], f"{n_all:,} read, {V2_ROWS[zone]:,} expected")
-        rep.check(f"{zone}: scenarios kept", f"First run uses rigidity model(s) {models} only (decision 14)", None,
+        rep.check(f"{zone}: scenarios kept", f"Rigidity model(s) in use {models} (decision 27)" + (f"; left out for want of footprints with slip: {skipped}" if skipped else ""), None,
                   f"{len(s):,} of {n_all:,}")
         key = s.rig.astype("int64") * 10 ** 17 + s.mw.astype("int64") * 10 ** 12 + s.scal.astype("int64") * 10 ** 10 \
             + s.sreal.astype("int64") * 10 ** 8 + s.tri.astype("int64") * 10 ** 3 + s.slip
@@ -105,7 +106,9 @@ def main(zones):
         rep.check(f"{zone}: realisations per position and geometry", "Uneven numbers of realisations (issue H3); the split uses the counts that exist", None,
                   f"positions {len(p1):,}: {100 * (p1.n_sreal == 1).mean():.0f}% have 1 scaling sample, {100 * (p1.n_sreal == 10).mean():.0f}% have 10; "
                   f"geometries {len(g1):,}: {100 * (g1.n_slip == 1).mean():.0f}% have 1 slip realisation, {100 * (g1.n_slip == 10).mean():.0f}% have 10")
-    rep.note("Bin edges are midpoints between bin centres (decision 5), a stand-in until the edges are supplied.")
+    rule = cfg["tree"]["options"]["bin_edges"]
+    rep.note("Bin edges from config/magnitude_intervals.csv, the intervals of the scenario provider (decision 22)." if rule == "provider"
+             else "Bin edges are midpoints between bin centres (decision 5).")
     rep.note("The triangle-to-segment map is derived from the scenarios, not supplied; it can be wrong by one segment next to a boundary.")
     rep.note("scenarios_<zone>.npz is read with numpy.load; columns: rig, mw (x 1e4), scal, sreal, tri, slip, slip_ratio, total_M0, "
              "seg_1.., bin, position, geometry, n_slip, n_sreal, split.")

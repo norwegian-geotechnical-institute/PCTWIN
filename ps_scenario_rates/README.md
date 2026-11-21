@@ -4,7 +4,7 @@ Annual rates of the predominant-subduction (PS) tsunami scenarios on every branc
 This covers steps 2 to 5 of the workflow in the repository README (logic tree, MFD and bin rates,
 distribution of the rates over the scenarios) and stops where the hazard aggregation starts.
 
-Status: **Sunda, first run** (homogeneous rigidity model, 480 branches, 2,075,771 scenarios). Makran is not done yet.
+Status: **Sunda, version 1.1** (240 branches; rigidity model 00 here, 01 ready for the slip files; 2,075,771 scenarios). Makran is not done yet.
 
 **Read `docs/guide.md` first.** It explains the method, each step with its limitations, the decisions taken and how to
 turn the rates into hazard curves. The numbers and figures of the run are in `docs/results.md`, written by the run itself.
@@ -17,7 +17,7 @@ The version of the rates is in `VERSION` (now 1.0).
 import numpy as np, pandas as pd
 from ptha_rates import rates
 
-branches = pd.read_csv("products/B0_config/branch_table_sunda.csv")      # 480 branches with their weights
+branches = pd.read_csv("products/B0_config/branch_table_sunda.csv")      # 240 branches with their weights
 scen = np.load("products/B1_inputs/scenarios_sunda.npz")
 names = rates.scenario_names("sun", scen)                                # scenario names, fixed order
 r = rates.scenario_rates("sunda", branches.branch_id[0])                 # annual rate of every scenario on one branch
@@ -55,7 +55,7 @@ python scripts/run_all.py
 | `config/` | `logic_tree.yaml` (levels, weights, options) and `zones.yaml` (zone and segment values). Every modelling choice is set here. |
 | `ptha_rates/` | The code, one module per task. |
 | `scripts/` | `run_all.py`, `clean.py`, one run script per step (`run_B<n>_<name>.py`) and the sensitivity test (`sens_coupling.py`). |
-| `tools/` | `reduce_slip_files.py`: stand-alone script that reduces slip files to rupture footprints (optional; see the guide, end of section 5). |
+| `tools/` | `reduce_slip_files.py`: stand-alone script that reduces slip files to rupture footprints with their slip; `README.md`: how to run version 1.1 with rigidity model 01 where the slip files are. |
 | `tests/` | Unit tests on small synthetic cases with known answers. |
 | `products/<step>/` | What each step produces and later steps read. Kept in the repository so the rates can be used without the input data. |
 | `checks/<step>/` | Written by every run, not kept in the repository: `report.md` per step and `INDEX.md` listing every check with its result. |

@@ -1,7 +1,7 @@
 unit,budget_preferred_present,budget_preferred_test,coupling_present,coupling_test,ratio
-whole_zone,6.579e+20,1.01e+21,0.4219,0.648,1.536
-Arakan,6.097e+19,1.355e+20,0.45,1,2.222
-Aceh-Andaman,1.552e+20,1.552e+20,0.7,0.7,1
-Sumatra,2.836e+20,2.836e+20,0.8,0.8,1
-Java,8.379e+19,3.618e+20,0.176,0.76,4.318
-Sumba,7.43e+19,7.43e+19,0.2,0.2,1
+whole_zone,6.816e+20,1.055e+21,0.4079,0.6314,1.548
+Arakan,6.076e+19,1.35e+20,0.45,1,2.222
+Aceh-Andaman,1.546e+20,1.546e+20,0.7,0.7,1
+Sumatra,2.874e+20,2.874e+20,0.8,0.8,1
+Java,9.015e+19,3.893e+20,0.176,0.76,4.318
+Sumba,8.875e+19,8.875e+19,0.2,0.2,1

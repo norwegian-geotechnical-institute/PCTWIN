@@ -33,7 +33,14 @@ def units(zone_cfg):
     return out
 
 
-def parameter_table(cat, zone_cfg):
+def observed_mmax(largest, area_limit, tree=None):
+    """The 'observed' Mmax alternative: the largest event plus n_sigma x sigma (decision 23; version 1.0 had
+    n_sigma 0), kept at or below the area limit."""
+    o = (tree or {}).get("options", {}).get("mmax_observed", {"n_sigma": 0, "sigma": 0})
+    return float(min(largest + o["n_sigma"] * o["sigma"], area_limit))
+
+
+def parameter_table(cat, zone_cfg, tree=None):
     """Per unit: catalogue b; the observed annual rate at the anchor magnitude, which sets the a-value
     of the seismic branches (decision 20); the three Mmax alternatives (largest observed, area limit,
     mean of the two); and, for the record, Mc with the rate above it in its complete period."""
@@ -45,14 +52,15 @@ def parameter_table(cat, zone_cfg):
         e = cat if u["segment"] == 0 else cat[cat.segment == u["segment"]]
         years = end - u["mc_start_year"] + 1
         n = int(((e.mw >= u["mc"]) & (e.year >= u["mc_start_year"])).sum())
-        obs = u["mmax_observed"] if u["mmax_observed"] is not None else float(e.mw.max())
+        largest = u["mmax_observed"] if u["mmax_observed"] is not None else float(e.mw.max())
+        obs = observed_mmax(largest, u["mmax_area"], tree)
         n_anc = int(((e.mw >= anc["magnitude"]) & (e.year >= anc["start_year"])).sum())
         r = dict(unit=u["unit"], segment=u["segment"], b_catalogue=u["b"],
                  anchor_mw=anc["magnitude"], anchor_start_year=anc["start_year"], anchor_years=anc_years,
                  n_ge_anchor=n_anc, rate_anchor_per_yr=n_anc / anc_years,
                  mc=u["mc"], mc_start_year=u["mc_start_year"],
                  years_complete=years, n_ge_mc=n, rate_mc_per_yr=n / years, n_events=len(e),
-                 mmax_observed=obs, mmax_area_limit=u["mmax_area"], mmax_mean=(obs + u["mmax_area"]) / 2)
+                 largest_event_mw=largest, mmax_observed=obs, mmax_area_limit=u["mmax_area"], mmax_mean=(obs + u["mmax_area"]) / 2)
         for t in THRESHOLDS:
             r[f"n_ge_{t:g}"] = int((e.mw >= t).sum())
         rows.append(r)
