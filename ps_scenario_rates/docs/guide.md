@@ -209,11 +209,11 @@ the code and the configuration; earlier and minor decisions are in the version 1
 
 - **Makran.** The code takes any zone listed in `config/zones.yaml`. Makran needs its mesh as a text file, a
   catalogue, and the coupling and Mmax values that are still empty there. Then `python scripts/run_all.py makran`.
-- **Rigidity model 01 on Dipankar's side** (`tools/README.md`): reduce the slip files, set `footprints: from_file`, run.
+- **Run with rigidity model 01 and compute the hazard curves** (Dipankar, where the slip files are): reduce the slip files,
+  set `footprints: from_file`, run, check, then hazard curves from `products/B7_rates/` (steps in `tools/README.md`; hazard curves as in section 2).
 - **Penalty on boundary-crossing ruptures.**
 - **Weights from data** (Bayesian update against the record of large events).
-- **Variable coupling and convergence rate.** Read them per triangle in step B2, not per segment. The footprints only
-  start to matter once this is in.
+- **Variable coupling and convergence rate.** Read them per triangle in step B2, not per segment.
 
 ## 10. Versions
 
