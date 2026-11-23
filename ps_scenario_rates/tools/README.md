@@ -9,7 +9,8 @@ Without it the chain leaves 01 out and gives model 00 all the weight.
        python tools/reduce_slip_files.py PS/sun/01 data/Sunda_triangles.txt sun data/footprints --rig 01 --label 01
 
    Each run reads every slip realisation and writes `data/footprints/footprints_sun_<label>.npz` (triangles and mean slip of
-   each rupture geometry). It prints a moment check for model 00: about 1 in the west and lower in the east (issue H1).
+   each rupture geometry). It ends with a check: the moment of each rupture, computed with the same areas and rigidity as the
+   scenario generator, against its named Mw. It should say OK (ratio 1 within 2%).
    Text files read at roughly 400 per second per process, so split the work by magnitude folder (`--label 00_9_0260` and so on)
    if it is slow; all `footprints_sun_*.npz` files are read together.
 
