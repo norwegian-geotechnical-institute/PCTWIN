@@ -1,6 +1,6 @@
 # PS scenario rates: guide
 
-Version 1.1 (21 November 2026). Sunda done. Makran not yet done.
+Version 1.1 (22 November 2026). Sunda done. Makran not yet done.
 
 This guide explains the method, the steps, the decisions and the open points. The numbers and figures of the run are in
 [`results.md`](results.md), which the run writes itself. The inputs are in `config/`.
@@ -60,9 +60,10 @@ Things to know before using them:
 - **Order.** Rates are in the order of `products/B1_inputs/scenarios_sunda.npz`. Match your simulation results to
   `names`; do not rely on the order of any other file. `products/B7_rates/scenario_mean_rates_sunda.csv.gz`
   has name and mean rate side by side.
-- **Coverage.** Only scenarios of rigidity model 00 have a rate. A simulated scenario of another rigidity model must
-  be left out for now, not given a zero.
-- **Units.** Events per year. The rates of all scenarios add up to the total rate of Mw 6.35 and larger.
+- **Coverage.** Only scenarios of the rigidity models in use have a rate: 00 in a run without the slip files, 00 and 01
+  in a run with them (`checks/B7_rates` lists them). A simulated scenario of another rigidity model must be left out,
+  not given a zero.
+- **Units.** Events per year. The rates of all scenarios add up to the total rate of Mw 6.34 (lower edge of the first bin) and larger.
 - **Version.** `scenario_rates_sunda.npz` carries the version of the rates (`version`); quote it with any hazard result.
 - **Weights.** `weight` in the branch table sums to 1 over the 240 branches. The split between rigidity models
   and scaling laws is already inside the rate (they are pooled, not branches).
@@ -73,7 +74,10 @@ Things to know before using them:
 
 The formula behind a rate, should you want to rebuild it from the tables yourself:
 
-    rate(scenario, branch) = pooled weight x bin rate(branch) x share(position) x split(scenario)
+    rate(scenario, branch) = pooled weight x rigidity factor x bin rate(branch) x share(position) x split(scenario)
+
+The rigidity factor is 1 on seismic branches and for model 00; for model 01 on geodynamic branches it is the column
+`rigidity_factor_01_<coupling level>` of `products/B2_budget/budget_sunda.csv` (decision 27).
 
 | Table | File |
 |---|---|
@@ -132,7 +136,7 @@ One run script per step (`scripts/run_B<n>_<name>.py`); each writes `products/<s
 | B1 Input tables | Reads the scenario table and the mesh; assigns bins, positions, splits; gives every triangle a segment and a distance along the trench | `scenarios.npz`, `bins`, `triangles`, `trench` | The triangle-to-segment map is derived from the smallest scenarios (approximate at boundaries). Realisations per rupture are uneven (1 to 10). | Segment table from Dipankar |
 | B2 Loading and budget | Moment budget summed triangle by triangle (mu x area x coupling x convergence), per segment and for the zone at three coupling levels, with triangle areas computed as Dipankar does (UTM zone 46); mu(depth) of each triangle for model 01 (x 1.24 on the 30 GPa budget for the whole zone) | `budget` | The sum is per triangle, but the coupling and convergence given to the triangles are one value per segment. Convergence is used as given (not projected onto the interface). | Coupling and convergence that vary along the segment |
 | B3 Catalogue | Assigns catalogue events to segments; counts events above the anchor magnitude; largest observed event per unit | `parameters`, catalogue fit figure | Events go to the segment of the nearest triangle with no depth or mechanism filter. Arakan (3 events) and Sumba (8) have uncertain anchor rates. b and Mc are taken from the Madan's estimates, not refitted. | Interface-only catalogue (thrust-mechanism events only); uncertainty on the anchor rate as a branch? |
-| B4 Bin rates | Annual rate of every bin for every unit, rate variant, MFD form, b-value and Mmax | `bin_rates.npz`, MFD figure, modelled against observed large events | The tapered Pareto is cut at the top of the last bin (no scenarios above Mw 9.52). In segments with no large event on record, the "largest observed" Mmax forces the whole budget into moderate events. | Review the Mmax alternatives for quiet segments; decide the tail treatment |
+| B4 Bin rates | Annual rate of every bin for every unit, rate variant, MFD form, b-value and Mmax | `bin_rates.npz`, MFD figure, modelled against observed large events | The tapered Pareto is cut at the top of the last bin (no scenarios above Mw 9.52) and the budget balanced over the modelled bins: with corners of 9.4 to 9.5, 14 to 37% of the moment of an unconstrained tapered branch lies above the cut, so all its bin rates rise by x 1.2 to 1.6. In segments with no large event on record, the "largest observed" Mmax puts most of the budget into moderate events. | Review the Mmax alternatives for quiet segments |
 | B5 Shares, unconstrained | Share of each bin's rate for every position, for the seismic variant and the three coupling levels | `shares.npz` | Rupture footprints are not used by default: loading under a rupture is taken from its segment fractions, so inside a segment all positions of a bin get the same weight. Can be run with Dipankar's slip models (end of this section); rigidity model 01 needs them. With footprints, the loading under a rupture of model 01 is weighted by mu(depth) / 30 GPa, so deeper (stiffer) ruptures get more of the bin rate (tested with estimated footprints: the share of ruptures starting above 15 km falls from 58% to 51%). | Footprint-based shares (needs a reduction of the slip files on Dipankar's side) |
 | B6 Shares, segmented | Share of each segment's bin rate for every position, including ruptures that cross a boundary | `shares_segmented.npz` | No penalty on boundary-crossing ruptures (`crossing_penalty: 1`). Same shares for all rate variants, for the reason given under B5. | Penalty from evidence on segment boundaries, if wanted |
 | B7 Scenario rates | Mean rate of every scenario over all branches and over four groups; reader for any single branch | `scenario_rates.npz`, `scenario_mean_rates.csv.gz` | Rates per branch are rebuilt on request, not stored (240 x 2 million values) | |
@@ -155,8 +159,9 @@ loading (or seismicity density) over its own triangles, so loading that varies i
 Checked against the slip sample available (105 ruptures, Mw 9.03, scaling sample 00): the area in the slip files equals the
 scaling-law area within 0.1%, and the estimated footprint shares 96% of its triangles with the real one (median). Other
 magnitudes and the other scaling samples, whose areas differ from the median, could not be checked. With the present
-loading, constant inside each segment, `estimated` changes the scenario rates very little (0.2% of the rate moves, 2.5%
-for Mw 8.5 and above), so it matters only once loading per triangle is supplied.
+loading, constant inside each segment, `estimated` changes the scenario rates of model 00 very little (0.2% of the rate moves,
+2.5% for Mw 8.5 and above). Footprints matter for model 01, whose loading is weighted by mu(depth) (B5), and will matter
+for model 00 once loading per triangle is supplied.
 
 `reduce_slip_files.py` needs only Python and numpy and is run where the slip files are; `tools/README.md` gives the three commands.
 
@@ -167,8 +172,11 @@ rate of the zone, where the rate falls along the trench, the consistency checks 
 run (`scripts/make_results.py`), so it always matches the products.
 
 How to read it: the seismic branches match the record at moderate magnitudes by construction. The geodynamic branches are
-an independent estimate; where they give more moderate events than the record, the likely cause is the "largest observed"
-and "mean" Mmax alternatives in segments whose record holds no large event (step B4 in section 5).
+an independent estimate. Their weighted mean gives about twice the observed rate of Mw 6.35 and larger, and agrees with the
+record from about Mw 7.5 up. The excess comes from the budget itself (preferred coupling), the high b-values (on a fixed
+budget they put many more events at small magnitudes, so the mean curve is steeper than b = 0.86), the high coupling level,
+the cut of the tapered tail (B4) and, in quiet segments, the "largest observed" Mmax. A Bayesian update against the record
+would down-weight the branches responsible.
 
 ## 7. Sensitivity to coupling
 
@@ -223,7 +231,7 @@ version is a tag in the repository. Raise it whenever the rates change.
 | Version | Date | What |
 |---|---|---|
 | 1.0 | 15 November 2026 | Sunda, first run: homogeneous rigidity model, 480 branches, decisions 1 to 21 |
-| 1.1 | 21 November 2026 | Dipankar's bins, new b-values, Mmax, coupling and weights; rigidity 01 ready for the slip files; Dipankar's triangle areas in the budget; 240 branches; decisions 22 to 29 |
+| 1.1 | 22 November 2026 | Dipankar's bins, new b-values, Mmax, coupling and weights; rigidity 01 ready for the slip files; Dipankar's triangle areas in the budget; 240 branches; decisions 22 to 29 |
 
 To change an input: edit `config/`, run `python scripts/run_all.py`, add a row to the decisions in section 8 and to this
 table, raise `VERSION`, commit and tag.
