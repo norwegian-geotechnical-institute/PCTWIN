@@ -78,6 +78,9 @@ def area_km2(fp, tri):
     return np.add.reduceat(a, fp["indptr"][:-1])
 
 
+CHUNK = 5_000_000           # (geometry, triangle) entries handled at once by from_file
+
+
 def from_file(folder, zone_code, scen, tri, n_pos, mu_of=None):
     """Footprints of every position from the files written by tools/reduce_slip_files.py (one or more
     footprints_<zone>_*.npz in `folder`). Each file lists rupture geometries by scenario name with their
@@ -95,25 +98,39 @@ def from_file(folder, zone_code, scen, tri, n_pos, mu_of=None):
     w_geo_pos = np.add.reduceat(scen["split"][o], np.flatnonzero(np.r_[True, np.diff(ks) > 0]))     # weight of each geometry in its position
     k_u = ks[np.r_[True, np.diff(ks) > 0]]; pos_u = scen["position"][o][np.r_[True, np.diff(ks) > 0]]
     row_of = np.full(int(tri.id.max()) + 1, -1); row_of[tri.id.to_numpy()] = np.arange(len(tri)); area = tri.area_km2.to_numpy()
-    P, T, W = [], [], []; seen = np.zeros(len(k_u), bool)
+    C, W = [], []; seen = np.zeros(len(k_u), bool)
     for f in files:
-        d = np.load(f)
+        with np.load(f) as z:                                        # read each array once: an npz decompresses an array on every access
+            d = {k: z[k] for k in z.files}
         k_f = key(d["rig"], d["mw"], d["scal"], d["sreal"], d["tri"])
         j = np.searchsorted(k_u, k_f); ok = (j < len(k_u)) & (k_u[np.minimum(j, len(k_u) - 1)] == k_f)
-        ip = d["indptr"]; has_slip = "slip" in d.files and mu_of is not None
-        for g in np.flatnonzero(ok):
-            if seen[j[g]]:
-                continue
-            seen[j[g]] = True
-            t = row_of[d["triangle"][ip[g]:ip[g + 1]]]; a = area[t]
-            if has_slip:
-                a = a * d["slip"][ip[g]:ip[g + 1]] * mu_of(int(d["rig"][g]), t)
-            P.append(np.full(len(t), pos_u[j[g]])); T.append(t); W.append(w_geo_pos[j[g]] * a / a.sum())
+        g_sel = np.flatnonzero(ok)
+        g_sel = g_sel[~seen[j[g_sel]]]                               # a geometry already read from an earlier file is skipped
+        g_sel = g_sel[np.unique(j[g_sel], return_index=True)[1]]     # and so is a repeat inside this file
+        seen[j[g_sel]] = True
+        ip = d["indptr"].astype(np.int64); n = np.diff(ip); ntri = len(tri)
+        # geometries in chunks of about CHUNK entries; each chunk is merged into (position, triangle) pairs at once,
+        # so memory stays near the size of the final footprint table
+        chunk = (np.cumsum(n[g_sel]) - n[g_sel]) // CHUNK              # chunk of each geometry, by where its entries start
+        for c in np.unique(chunk):
+            gs = g_sel[chunk == c]
+            geo = np.repeat(gs, n[gs])
+            e = np.repeat(ip[gs] - np.r_[0, np.cumsum(n[gs])[:-1]], n[gs]) + np.arange(n[gs].sum())   # entry rows of these geometries
+            t = row_of[d["triangle"][e]]; a = area[t]
+            if "slip" in d and mu_of is not None:                    # moment = mu x area x mean slip (decision 27)
+                a = a * d["slip"][e]
+                rig_e = d["rig"][geo]
+                for r in np.unique(rig_e):
+                    m = rig_e == r
+                    a[m] = a[m] * mu_of(int(r), t[m])
+            tot = np.bincount(geo, weights=a, minlength=len(n))
+            code = pos_u[j[geo]].astype(np.int64) * ntri + t
+            u, inv = np.unique(code, return_inverse=True)
+            C.append(u); W.append(np.bincount(inv, weights=w_geo_pos[j[geo]] * a / tot[geo]))
+        del d
     if not seen.all():
         raise ValueError(f"{int((~seen).sum()):,} of {len(seen):,} rupture geometries have no footprint in {folder}")
-    P, T, W = np.concatenate(P), np.concatenate(T), np.concatenate(W)
-    code = P.astype(np.int64) * len(tri) + T                         # merge the geometries of a position
-    u, inv = np.unique(code, return_inverse=True); frac = np.bincount(inv, weights=W)
+    u, inv = np.unique(np.concatenate(C), return_inverse=True); frac = np.bincount(inv, weights=np.concatenate(W))   # merge the chunks
     p_u, t_u = u // len(tri), u % len(tri)
     return dict(indptr=np.r_[0, np.cumsum(np.bincount(p_u, minlength=n_pos))], index=t_u.astype(np.int16 if len(tri) < 32768 else np.int32),
                 frac=frac.astype(np.float32))
