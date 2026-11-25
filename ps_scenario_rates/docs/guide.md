@@ -29,7 +29,7 @@ For computing hazard, the tables in `products/` are enough; the input data are n
 import numpy as np
 from ptha_rates import rates
 
-scen  = np.load("products/B1_inputs/scenarios_sunda.npz")
+scen  = dict(np.load("products/B1_inputs/scenarios_sunda.npz"))   # dict: read each array once, not at every use
 names = rates.scenario_names("sun", scen)                       # PS_sun_00_..., one per scenario
 mean  = np.load("products/B7_rates/scenario_rates_sunda.npz")["rate_mean"]   # events per year, same order
 

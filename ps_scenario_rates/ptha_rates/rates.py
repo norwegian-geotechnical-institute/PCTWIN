@@ -35,9 +35,19 @@ def load(zone, cfg=None):
             col = f"rigidity_factor_{r:02d}_{lev}"
             if col in bud:
                 fac[lev][:, (pos.rig == r).to_numpy()] = bud.loc[units, col].to_numpy()[:, None]
-    return dict(zone=zone, cfg=cfg, R=R, pos=pos, w_rig=w_rig, w_scal=w_scal, pooled=w_rig * w_scal, rig_factor=fac, U=S["share_unconstrained"],
+    fac_unit = {lev: sum(w * (bud.loc[units, f"rigidity_factor_{k}_{lev}"].to_numpy() if f"rigidity_factor_{k}_{lev}" in bud else np.ones(len(units)))
+                         for k, w in rig_w.items()) for lev in ("low", "preferred", "high")}
+    return dict(zone=zone, cfg=cfg, R=R, pos=pos, w_rig=w_rig, w_scal=w_scal, pooled=w_rig * w_scal, rig_factor=fac, rig_factor_unit=fac_unit, U=S["share_unconstrained"],
                 X=np.load(os.path.join(P, "B6_segmented", f"shares_segmented_{zone}.npz"))["share_segmented"],
                 table=pd.read_csv(os.path.join(P, "B0_config", f"branch_table_{zone}.csv")))
+
+
+def expected_bin_rates(D, branch):
+    """Total rate per bin that the positions of a branch must carry: the bin rates of the branch, scaled on geodynamic
+    branches by the pooled rigidity factor of each unit (sum over rigidity models of weight x factor, decision 27)."""
+    r = binrates.branch_bin_rates(D["R"], branch)                    # unit x bin
+    f = D["rig_factor_unit"][branch.coupling] if branch.rate_source == "geodynamic" else np.ones(len(r))
+    return r[0] * f[0] if branch.segmentation == "unconstrained" else (r[1:] * f[1:, None]).sum(axis=0)
 
 
 def pooled_weights(D, branch):

@@ -38,17 +38,20 @@ def main(zones):
         for i, br in enumerate(t.itertuples()):
             pr = rates.position_rates(D, br)
             byb = np.bincount(kb, weights=pr, minlength=nb)
-            ok = Z[i] > 0
-            err = max(err, np.abs(byb[ok] / Z[i][ok] - 1).max(), np.abs(byb[~ok]).max() if (~ok).any() else 0.0)
+            ze = rates.expected_bin_rates(D, br)                               # bin rates x pooled rigidity factor (decision 27)
+            ok = ze > 0
+            err = max(err, np.abs(byb[ok] / ze[ok] - 1).max(), np.abs(byb[~ok]).max() if (~ok).any() else 0.0)
             i_f, ib, im = R["forms"].index(br.mfd_form), int(br.b_index) - 1, R["mmax"].index(br.mmax)
             us = [0] if br.segmentation == "unconstrained" else list(range(1, n_seg + 1))
             r_u = binrates.branch_bin_rates(R, br)[us]
-            mfd_mom = np.nansum(r_u * R["mean_m0"][us, i_f, ib, im])            # moment the MFD assigns to the modelled bins
+            fu = (D["rig_factor_unit"][br.coupling] if br.rate_source == "geodynamic" else np.ones(len(R["units"])))[us][:, None]
+            mfd_mom = np.nansum(fu * r_u * R["mean_m0"][us, i_f, ib, im])       # moment the MFD assigns to the modelled bins (x rigidity factor)
             mom_ratio[i] = (pr * m0p).sum() / mfd_mom
-            cen_ratio[i] = (r_u * bins.m0_centre_nm.to_numpy()).sum() / mfd_mom
+            cen_ratio[i] = (fu * r_u * bins.m0_centre_nm.to_numpy()).sum() / mfd_mom
             if br.rate_source == "geodynamic":
                 lev = br.coupling
-                target = np.array([R["xi"][g + 1 if br.segmentation == "segmented" else 0, i_f, ib, im] * bud.loc[n, f"budget_{lev}_nm_yr"] for g, n in enumerate(names)])
+                fseg = D["rig_factor_unit"][lev][1:]                           # budget of each segment with the pooled rigidity models
+                target = np.array([R["xi"][g + 1 if br.segmentation == "segmented" else 0, i_f, ib, im] * bud.loc[n, f"budget_{lev}_nm_yr"] * fseg[g] for g, n in enumerate(names)])
                 seg_ratio[i] = (pr[:, None] * m0p[:, None] * F).sum(0) / target
         rep.check(f"{zone}: rate is conserved in every bin on every branch", "Position rates summed over a bin must equal the bin rate of the branch; nothing lost, nothing added",
                   bool(err < 1e-9), f"{len(t)} branches x {nb} bins; largest relative error {err:.1e}")

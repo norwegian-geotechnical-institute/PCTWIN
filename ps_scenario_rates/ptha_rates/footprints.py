@@ -108,6 +108,7 @@ def from_file(folder, zone_code, scen, tri, n_pos, mu_of=None):
         g_sel = g_sel[~seen[j[g_sel]]]                               # a geometry already read from an earlier file is skipped
         g_sel = g_sel[np.unique(j[g_sel], return_index=True)[1]]     # and so is a repeat inside this file
         seen[j[g_sel]] = True
+        g_sel = g_sel[np.argsort(pos_u[j[g_sel]], kind="stable")]    # geometries of one position side by side, so a chunk merges them
         ip = d["indptr"].astype(np.int64); n = np.diff(ip); ntri = len(tri)
         # geometries in chunks of about CHUNK entries; each chunk is merged into (position, triangle) pairs at once,
         # so memory stays near the size of the final footprint table

@@ -63,18 +63,8 @@ def main(zones):
                   "unconstrained": (t.segmentation == "unconstrained").to_numpy(), "segmented": (t.segmentation == "segmented").to_numpy()}
         PM = {g: rates.mean_position_rates(D, m) for g, m in groups.items()}
         Z = binrates.zone_bin_rates(D["R"], t)
-        # expected total: zone total rate of each branch x sum over rigidity models of weight x rigidity factor
-        bud = pd.read_csv(os.path.join(PRODUCTS, "B2_budget", f"budget_{zone}.csv")).set_index("unit")
-        rw = config.rigidity_in_use(cfg["tree"]); expect = 0.0
-        for i, br in enumerate(t.itertuples()):
-            if br.rate_source == "seismic":
-                f = 1.0
-            elif br.segmentation == "unconstrained":
-                f = sum(v * bud.loc["whole_zone"].get(f"rigidity_factor_{k}_{br.coupling}", 1.0) for k, v in rw.items())
-            else:
-                rs = binrates.branch_bin_rates(D["R"], br)[1:].sum(1); names = D["R"]["units"][1:]
-                f = sum(v * (rs * bud.loc[names].get(f"rigidity_factor_{k}_{br.coupling}", pd.Series(1.0, index=names)).to_numpy()).sum() / rs.sum() for k, v in rw.items())
-            expect += w[i] * Z[i].sum() * f
+        # expected total: bin rates of each branch x pooled rigidity factor (decision 27)
+        expect = float(sum(w[i] * rates.expected_bin_rates(D, br).sum() for i, br in enumerate(t.itertuples())))
         rep.check(f"{zone}: mean rates add up to the mean bin rates", "Sum of the mean position rates must equal the weighted mean of the zone's total rate",
                   bool(np.isclose(PM["all"].sum(), expect, rtol=1e-9)), f"{PM['all'].sum():.6f} per year against {expect:.6f}")
         sr = PM["all"][scen["position"]] * scen["split"]
