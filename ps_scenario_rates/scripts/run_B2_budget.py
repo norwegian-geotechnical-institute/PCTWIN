@@ -1,6 +1,6 @@
 """Step B2. Loading on every triangle and the moment budget of each zone and segment.
 
-Run from ps_scenario_rates after step B1:   python scripts/run_B2_budget.py [zone ...]     (default: sunda)
+Run from ps_scenario_rates after step B1:   python scripts/run_B2_budget.py [zone ...]     (default: sunda makran)
 Writes products/B2_budget/ and checks/B2_budget/.
 
 Products per zone:
@@ -75,4 +75,4 @@ def main(zones):
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main(sys.argv[1:] or ["sunda"]) else 1)
+    sys.exit(0 if main(sys.argv[1:] or ["sunda", "makran"]) else 1)

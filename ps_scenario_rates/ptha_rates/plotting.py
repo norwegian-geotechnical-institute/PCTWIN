@@ -97,7 +97,7 @@ def rate_along_trench(path, title, tri, trench, s_pos, kb, bins, names, curves, 
     L = trench.dist_km.iloc[-1]; edges = np.arange(0.0, np.ceil(L / width) * width + width, width)
     bounds = [(tri.along_trench_km[tri.segment == g].quantile(.98) + tri.along_trench_km[tri.segment == g + 1].quantile(.02)) / 2 for g in range(1, n_seg)]
     mids = np.diff(np.r_[0.0, bounds, L]) / 2 + np.r_[0.0, bounds]
-    classes = [("Mw 6.35 to 7.5", (bins.mw_centre < 7.5).to_numpy()), ("Mw 7.5 to 8.5", ((bins.mw_centre >= 7.5) & (bins.mw_centre < 8.5)).to_numpy()), ("Mw 8.5 and above", (bins.mw_centre >= 8.5).to_numpy())]
+    classes = [(f"Mw {bins.mw_lower.iloc[0]:.2f} to 7.5", (bins.mw_centre < 7.5).to_numpy()), ("Mw 7.5 to 8.5", ((bins.mw_centre >= 7.5) & (bins.mw_centre < 8.5)).to_numpy()), ("Mw 8.5 and above", (bins.mw_centre >= 8.5).to_numpy())]
     fig = plt.figure(figsize=(11, 7.6))
     gs = fig.add_gridspec(3, 2, width_ratios=[1.75, 1], hspace=0.12, wspace=0.16)
     axes = [fig.add_subplot(gs[i, 0]) for i in range(3)]

@@ -84,6 +84,16 @@ class TestFootprints(unittest.TestCase):
             fp = footprints.from_file(d, "syn", scen, self.tri, 1)          # no rigidity given: area fractions
             np.testing.assert_allclose(fp["frac"], a / a.sum(), rtol=1e-6)
 
+    def test_from_file_ignores_slip_that_includes_removed_realisations(self):
+        # the file averaged 2 realisations, the scenario table keeps 1: the slip is not used, area fractions instead
+        scen = dict(rig=np.array([1]), mw=np.array([70000]), scal=np.array([1]), sreal=np.array([0]), tri=np.array([1]),
+                    position=np.array([0]), split=np.array([1.0]))
+        with tempfile.TemporaryDirectory() as d:
+            np.savez(os.path.join(d, "footprints_syn_01.npz"), rig=[1], mw=[70000], scal=[1], sreal=[0], tri=[1],
+                     indptr=[0, 2], triangle=[1, 2], slip=np.array([3.0, 1.0], np.float32), n_real=[2])
+            fp = footprints.from_file(d, "syn", scen, self.tri, 1, mu_of=lambda rig, rows: np.full(len(rows), 3e10))
+            np.testing.assert_allclose(fp["frac"], [0.5, 0.5], rtol=1e-6); self.assertEqual(int(fp["n_slip_ignored"]), 1)
+
     def test_mu_ratio_weights_geodynamic_shares_only(self):
         # two positions of rigidity model 01 in one cell, on triangles 1 and 3; equal loading; mu twice as high on triangle 3
         pos = pd.DataFrame({"position": [0, 1], "cell": 0, "rig": [1, 1]})

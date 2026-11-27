@@ -1,6 +1,6 @@
 """Step B4. Annual rate of every magnitude bin on every branch.
 
-Run from ps_scenario_rates after steps B0 to B3:   python scripts/run_B4_bin_rates.py [zone ...]     (default: sunda)
+Run from ps_scenario_rates after steps B0 to B3:   python scripts/run_B4_bin_rates.py [zone ...]     (default: sunda makran)
 Writes products/B4_bin_rates/ and checks/B4_bin_rates/.
 
 Products per zone:
@@ -16,7 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import pandas as pd
-from ptha_rates import PRODUCTS, binrates, catalogue, config, mfd, plotting
+from ptha_rates import PRODUCTS, binrates, catalogue, config, inputs, mfd, plotting
 from ptha_rates.report import CheckReport
 plt = plotting.plt
 
@@ -124,9 +124,9 @@ def main(zones):
         mean_z = (Z * w[:, None]).sum(0)
         rep.check(f"{zone}: weighted mean rate of the zone", "Return period of events at or above a magnitude, all branches", None,
                   "; ".join(f"Mw>={bins.mw_lower[k]:.2f}: " + (f"{mean_z[k:].sum():.1f} per yr" if mean_z[k:].sum() >= 1 else f"1 per {1 / mean_z[k:].sum():,.0f} yr")
-                            for k in (0, 5, 10, 16, 21, 26)))
+                            for k in inputs.summary_bins(bins)))
         tp = np.array([R["forms"].index(f) for f in table.mfd_form]) == R["forms"].index("tapered_pareto")
-        k9 = int(np.searchsorted(bins.mw_lower.to_numpy(), 9.0))
+        k9 = int(min(np.searchsorted(bins.mw_lower.to_numpy(), 9.0), len(bins) - 1))
         rep.check(f"{zone}: tapered Pareto against truncated G-R above Mw {bins.mw_lower[k9]:.2f}", "Effect of the MFD form on the largest events (weighted mean rate of the zone)", None,
                   f"tapered {float((Z[tp, k9:].sum(1) * w[tp]).sum() / w[tp].sum()):.2e}/yr, truncated {float((Z[~tp, k9:].sum(1) * w[~tp]).sum() / w[~tp].sum()):.2e}/yr")
 
@@ -147,13 +147,15 @@ def main(zones):
             for i in np.where(m)[0]:
                 ax.semilogy(mm, np.where(CC[i] > 0, CC[i], np.nan), color="0.75", lw=0.3, ls="-" if unc[i] else "--")
             ax.semilogy(mm, (CC[m] * w[m, None]).sum(0) / w[m].sum(), color="black", lw=1.6, label="weighted mean")
-            big = np.sort(cat.mw[cat.mw >= mm[0]].to_numpy())[::-1]
-            ax.semilogy(big, np.arange(1, len(big) + 1) / years, "o", ms=3, mfc="white", mec="black", label=f"observed, {cat.year.min()}-{cat.year.max()}")
+            anc = z["seismic_anchor"]; ok = (cat.mw >= anc["magnitude"]) & (cat.year >= anc["start_year"])
+            big = np.sort(cat.mw[ok].to_numpy())[::-1]
+            ax.semilogy(big, np.arange(1, len(big) + 1) / (z["catalogue_end_year"] - anc["start_year"] + 1), "o", ms=3, mfc="white", mec="black",
+                        label=f"observed, {anc['start_year']}-{z['catalogue_end_year']}")
             ax.set_title(f"{zone.capitalize()}: {src} ({int(m.sum())})"); ax.set_xlabel("Mw")
             ax.set_ylim(1e-6, 30); ax.legend(frameon=False)
         axes[0].set_ylabel("events per year, magnitude >= Mw, whole zone")
         fig.text(0.01, 0.01, "Grey: one line per branch (solid: unconstrained; dashed: segmented, summed over segments).\n"
-                 "Observed rates assume the catalogue is complete above Mw 6.35 for its whole length.", fontsize=plotting.NOTE, va="bottom")
+                 f"Observed: events at or above the anchor magnitude (Mw {z['seismic_anchor']['magnitude']:g}) since {z['seismic_anchor']['start_year']}, taken as complete.", fontsize=plotting.NOTE, va="bottom")
         fig.tight_layout(rect=(0, 0.09, 1, 1)); fig.savefig(os.path.join(out, f"mfd_{zone}.png")); plt.close(fig)
     rep.note("Scenario data are not used in this step. Rates are for the whole zone or segment; step B5 shares them among scenarios.")
     rep.note("Tapered Pareto: corner magnitude = the Mmax alternative; the shape is cut at the upper edge of the last bin "
@@ -163,4 +165,4 @@ def main(zones):
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main(sys.argv[1:] or ["sunda"]) else 1)
+    sys.exit(0 if main(sys.argv[1:] or ["sunda", "makran"]) else 1)

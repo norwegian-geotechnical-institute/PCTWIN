@@ -47,16 +47,34 @@ sunda:
 
 makran:
   code: mak
-  rigidity_pa: 3.0e+10
+  rigidity_pa: 3.0e+10            # as Sunda: the rigidity the scenarios were generated with (the deliverable draft uses 33 GPa)
   utm_zone: 41
   fractions_csv: Makran_rupture_fractions.csv
-  triangles: null             # mesh is available only as a docx; text copy to be placed in the data folder
-  catalogue: null             # not in the project folder
+  triangles: Makran_triangles.txt   # Dipankar's mesh as text (same as the docx)
+  catalogue: Seismicity Distribution_Makran.csv
+  catalogue_end_year: 2025        # the file runs into 2026; that partial year is left out
+  arc_centre: [61.5, 10.0]        # south of the trench, so the line starts at the eastern end (seg_1); only for plots
+  trench_bins: 150                # bearing bins for the trench line (default 400 is too fine for this shorter, wide shallow zone)
+  # Seismic anchor: Mw 6.0 since 1920, not Mw 6.35 since 1906 as for Sunda. Above 6.35 only 4 interface events remain;
+  # above 6.0 there are 19, and their rate is about the same counted from 1920 (0.18/yr) or from 1964 (0.16/yr).
+  seismic_anchor: {magnitude: 6.0, start_year: 1920}
+  # Interface events only, as far as location allows (the catalogue has no focal mechanisms). The mesh reaches inland,
+  # so nearest-triangle assignment alone would keep upper-plate and intraslab events.
+  catalogue_filter:
+    lon_min: 57.3                 # west of this is the Zagros-Makran transition (Bandar Abbas region)
+    max_dist_km: 25
+    exclude:                      # large events known not to be on the interface
+      - {name: 2013 Balochistan sequence (strike-slip), from: "2013-09-24", to: "2013-12-31", lat: 26.95, lon: 65.50, radius_deg: 1.0}
+      - {name: 2011 Dalbandin (intraslab), from: "2011-01-18", to: "2011-01-18", lat: 28.04, lon: 63.85, radius_deg: 0.5, mw_min: 7.0}
   whole_zone:
     b: 0.87
     mc: 4.5
-    mmax_area: null
+    mc_start_year: 1975           # from the event counts per five years (record only)
+    mmax_area: 9.1                # Table 1, bracketed value from the Makran PTHA; above the top bin edge (9.08): the tail
+                                  # is cut there and the budget balanced over the modelled bins, as for Sunda
     mmax_observed: null
-  segments:                   # order = seg_1 (East), seg_2 (West) in the fractions file
-    - {name: East, b: 0.67, mc: 4.3, coupling: null, convergence: 30.0, mmax_area: null, mmax_observed: null}
-    - {name: West, b: 1.01, mc: 4.5, coupling: null, convergence: 27.0, mmax_area: null, mmax_observed: null}
+  # Coupling: preferred = middle of the range in Table 3 of the deliverable draft (West 0.2-0.6, East 0.6-1.0); low and
+  # high from the coupling rule of logic_tree.yaml, as for Sunda. Convergence from the same table.
+  segments:                       # order = seg_1 (East), seg_2 (West) in the fractions file; confirmed by Dipankar's shape files
+    - {name: East, b: 0.67, mc: 4.3, mc_start_year: 1975, coupling: 0.8, convergence: 30.0, mmax_area: 8.8, mmax_observed: null, ref_cs: null}
+    - {name: West, b: 1.01, mc: 4.5, mc_start_year: 1975, coupling: 0.4, convergence: 27.0, mmax_area: 8.6, mmax_observed: null, ref_cs: null}

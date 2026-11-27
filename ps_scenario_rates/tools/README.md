@@ -1,12 +1,12 @@
-# Running version 1.1 with rigidity model 01 (on the server that holds the slip files)
+# Running the rates with rigidity model 01 (on the server that holds the slip files)
 
 Rigidity model 01 is placed by moment under each rupture, so it needs the slip of every scenario (decision 27).
 Without it the chain leaves 01 out and gives model 00 all the weight. Run everything from the `ps_scenario_rates` folder.
 
 1. **Reduce the slip files** (Python 3 and numpy only), one run per rigidity model:
 
-       python tools/reduce_slip_files.py PS/sun/00 data/Sunda_triangles.txt sun data/footprints --rig 00 --label 00
-       python tools/reduce_slip_files.py PS/sun/01 data/Sunda_triangles.txt sun data/footprints --rig 01 --label 01
+       python tools/reduce_slip_files.py PS/sun/00 data/Sunda_triangles.txt sun data/footprints --rig 00 --label 00 --keep data/Rupture_fractions_v2.zip
+       python tools/reduce_slip_files.py PS/sun/01 data/Sunda_triangles.txt sun data/footprints --rig 01 --label 01 --keep data/Rupture_fractions_v2.zip
 
    `PS/sun/00` is the folder that holds the slip files of model 00 (searched with its subfolders); change it to where they are.
    Each run writes `data/footprints/footprints_sun_<label>.npz` (triangles and mean slip of each rupture geometry) and ends
@@ -16,15 +16,19 @@ Without it the chain leaves 01 out and gives model 00 all the weight. Run everyt
    The two models hold about 4 million slip files. One process reads about 400 per second, so about 3 hours in all. To go
    faster, run one magnitude folder per process, with its own label, for example:
 
-       python tools/reduce_slip_files.py PS/sun/00/9_0260 data/Sunda_triangles.txt sun data/footprints --rig 00 --label 00_9_0260
+       python tools/reduce_slip_files.py PS/sun/00/9_0260 data/Sunda_triangles.txt sun data/footprints --rig 00 --label 00_9_0260 --keep data/Rupture_fractions_v2.zip
 
    All `footprints_sun_*.npz` files in `data/footprints/` are read together afterwards.
+
+   `--keep` skips slip files whose scenario is not in the rupture fractions file: realisations removed from the scenario set
+   (unrealistic slip) then do not enter the mean slip. Without it, they do (footprints made before 27 Nov 2026). For Makran,
+   use `data/Makran_triangles.txt` and `mak`.
 
 2. **Switch the placement to the footprints** in `config/logic_tree.yaml`:  `footprints: from_file`.
 
 3. **Run the chain**, with `Rupture_fractions_v2.zip` in `data/` (needs several GB of memory; more than 4 GB):
 
-       python scripts/run_all.py sunda
+       python scripts/run_all.py sunda makran
 
 4. **Check** that `checks/INDEX.md` shows no FAIL, that `checks/B1_inputs` lists rigidity models 00 and 01 in use, and that
    `checks/B5_shares` confirms the footprint files hold slip.

@@ -1,13 +1,13 @@
 # Results
 
-Version 1.1 of the rates. Written by `scripts/make_results.py` from the products of the run; not edited by hand.
+Version 1.2 of the rates. Written by `scripts/make_results.py` from the products of the run; not edited by hand.
 What the quantities mean, the limitations of each step and the decisions behind the inputs are in `guide.md`.
 
 ## Sunda
 
 2,075,771 scenarios in 123,988 rupture positions; 31 magnitude bins, Mw 6.34 to 9.52; 240 branches (180 geodynamic, 60 seismic).
 
-Checks of this run: 49 passed, 0 failed, 44 reported for information (`checks/INDEX.md`).
+Checks of this run: 97 passed, 0 failed, 87 reported for information (`checks/INDEX.md`).
 
 ### Configuration used
 
@@ -81,7 +81,7 @@ Total rate of modelled events: seismic branches 1.08 per year; geodynamic branch
 
 ### Where the rate falls
 
-Events per year by segment, weighted mean. A rupture's rate is divided between segments by its segment fractions.
+Events per year of Mw >= 6.34 by segment, weighted mean; observed since 1906. A rupture's rate is divided between segments by its segment fractions.
 
 | Segment | Seismic branches | Geodynamic branches | Observed (Mw >= 6.35) |
 |---|---|---|---|
@@ -114,6 +114,104 @@ Moment released in each segment against its budget, geodynamic branches (1 = bal
 ![Weights](figures/weights_panel_sunda.png)
 
 ![Catalogue](figures/catalogue_fit_sunda.png)
+
+## Makran
+
+520,881 scenarios in 46,925 rupture positions; 18 magnitude bins, Mw 5.70 to 9.08; 240 branches (180 geodynamic, 60 seismic).
+
+Checks of this run: 97 passed, 0 failed, 87 reported for information (`checks/INDEX.md`).
+
+### Configuration used
+
+Placement of the rate among rupture positions (`footprints`): segment fraction approximation.
+
+Rigidity models in use (pooled): 00 1; left out for want of footprints with slip: 01.
+
+Weights of the logic tree (`config/logic_tree.yaml`):
+
+| Level | Alternatives and weights |
+|---|---|
+| rate source | seismic 0.4, geodynamic 0.6 |
+| segmentation | unconstrained 0.4, segmented 0.6 |
+| mfd form | truncated gr 0.5, tapered pareto 0.5 |
+| b-value | 0.56: 0.111, 0.71: 0.222, 0.86: 0.333, 1.01: 0.222, 1.16: 0.111 |
+| mmax | observed 0.1, area limit 0.45, mean 0.45 |
+| coupling (geodynamic) | low 0.250, preferred 0.500, high 0.250 |
+
+Zone and segment values (`config/zones.yaml`; Mmax observed = largest event in the catalogue + 0.2, at most the area limit):
+
+| Unit | b | Coupling low / preferred / high | Convergence (mm/yr) | Mmax observed / area limit / mean | Events of Mw >= 6 since 1920 |
+|---|---|---|---|---|---|
+| whole zone | 0.870 | 0.316 / 0.631 / 1.09 | 29 | 8.3 / 9.1 / 8.70 | 19 |
+| East | 0.670 | 0.4 / 0.8 / 1.3 | 30 | 8.3 / 8.8 / 8.55 | 16 |
+| West | 1.010 | 0.2 / 0.4 / 0.8 | 27 | 6.4 / 8.6 / 7.51 | 3 |
+
+### Moment budget
+
+| Unit | Low (N m/yr) | Preferred | High | Share of the preferred budget |
+|---|---|---|---|---|
+| whole zone | 1.04e+20 | 2.08e+20 | 3.58e+20 | 100% |
+| East | 7.61e+19 | 1.52e+20 | 2.47e+20 | 73% |
+| West | 2.78e+19 | 5.56e+19 | 1.11e+20 | 27% |
+
+### Large events in 119 years
+
+Weighted mean over the branches of each group, with the 5% to 95% range of branches in brackets. Reported only; no weight is changed.
+
+|  | Mw >= 7.5 | Mw >= 8 | Mw >= 8.5 | Mw >= 9 |
+|---|---|---|---|---|
+| Observed | 1 | 1 | 0 | 0 |
+| Seismic, unconstrained | 1.2 (0.4 to 2.9) | 0.4 (0.1 to 1.4) | 0.1 (0.0 to 0.5) | 0.0 (0.0 to 0.1) |
+| Seismic, segmented | 1.1 (0.3 to 2.7) | 0.4 (0.1 to 1.2) | 0.1 (0.0 to 0.3) | 0.0 (0.0 to 0.0) |
+| Geodynamic, unconstrained | 10.3 (3.6 to 21.9) | 3.2 (1.3 to 6.7) | 0.7 (0.1 to 1.4) | 0.0 (0.0 to 0.1) |
+| Geodynamic, segmented | 11.9 (5.0 to 22.5) | 3.2 (1.3 to 5.8) | 0.5 (0.0 to 1.3) | 0.0 (0.0 to 0.0) |
+| All branches | 7.2 (0.5 to 20.9) | 2.1 (0.1 to 5.4) | 0.4 (0.0 to 1.3) | 0.0 (0.0 to 0.1) |
+
+![MFDs of all branches](figures/mfd_makran.png)
+
+### Mean rate of the zone
+
+Weighted mean over all branches.
+
+| Magnitude | Rate |
+|---|---|
+| Mw >= 5.70 | 4.58 per year |
+| Mw >= 7.22 | once per 8 years |
+| Mw >= 7.67 | once per 25 years |
+| Mw >= 8.03 | once per 62 years |
+| Mw >= 8.58 | once per 466 years |
+
+Total rate of modelled events: seismic branches 0.33 per year; geodynamic branches 7.42 per year.
+
+### Where the rate falls
+
+Events per year of Mw >= 6.34 by segment, weighted mean; observed since 1920. A rupture's rate is divided between segments by its segment fractions.
+
+| Segment | Seismic branches | Geodynamic branches | Observed (Mw >= 6.34) |
+|---|---|---|---|
+| East | 0.076 | 0.839 | 0.038 |
+| West | 0.015 | 0.777 | 0.000 |
+
+![Rate along the trench](figures/rate_along_trench_makran.png)
+
+### Consistency
+
+Moment released by the scenarios against the moment the MFD assigns: 1.004 (a scenario carries the moment of its bin centre: 1.004 from that alone).
+
+Moment released in each segment against its budget, geodynamic branches (1 = balanced):
+
+| Segment | Unconstrained | Segmented |
+|---|---|---|
+| East | 0.96 | 0.95 |
+| West | 1.12 | 1.16 |
+
+### Other figures
+
+![Logic tree](figures/logic_tree_makran.png)
+
+![Weights](figures/weights_panel_makran.png)
+
+![Catalogue](figures/catalogue_fit_makran.png)
 
 ## Sensitivity tests
 

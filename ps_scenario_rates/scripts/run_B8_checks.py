@@ -1,6 +1,6 @@
 """Step B8. End-to-end checks on the scenario rates.
 
-Run from ps_scenario_rates after step B7:   python scripts/run_B8_checks.py [zone ...]     (default: sunda)
+Run from ps_scenario_rates after step B7:   python scripts/run_B8_checks.py [zone ...]     (default: sunda makran)
 Writes checks/B8_end_to_end/ (report, tables and a figure).
 """
 import os
@@ -84,4 +84,4 @@ def main(zones):
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main(sys.argv[1:] or ["sunda"]) else 1)
+    sys.exit(0 if main(sys.argv[1:] or ["sunda", "makran"]) else 1)

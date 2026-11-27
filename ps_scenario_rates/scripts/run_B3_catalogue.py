@@ -1,6 +1,6 @@
 """Step B3. Catalogue by segment, largest observed events and the observed rate that anchors the seismic branches.
 
-Run from ps_scenario_rates after step B1:   python scripts/run_B3_catalogue.py [zone ...]     (default: sunda)
+Run from ps_scenario_rates after step B1:   python scripts/run_B3_catalogue.py [zone ...]     (default: sunda makran)
 Writes products/B3_catalogue/ and checks/B3_catalogue/.
 
 Products per zone:
@@ -22,7 +22,8 @@ plt = plotting.plt
 
 def figure(cat, par, cfg, zone, path):
     tree = cfg["tree"]; bv = branches.b_values(tree); z = cfg["zones"][zone]
-    fig, axes = plt.subplots(2, 3, figsize=(11, 7.4), sharex=True)
+    nrow = int(np.ceil(len(par) / 3))
+    fig, axes = plt.subplots(nrow, 3, figsize=(11, 3.7 * nrow + 0.7), sharex=True, squeeze=False)
     for ax, (_, u) in zip(axes.ravel(), par.iterrows()):
         e = cat if u.segment == 0 else cat[cat.segment == u.segment]
         e1 = e[(e.year >= u.mc_start_year) & (e.mw >= u.mc)]
@@ -39,14 +40,17 @@ def figure(cat, par, cfg, zone, path):
         name = u.unit.replace("_", " ")
         ax.set_title(f"{name[0].upper() + name[1:]}: {u.n_ge_anchor} events")
         ax.set_ylim(1e-4, 1e3)
-    for ax in axes[1]:
+    for ax in axes.ravel()[len(par):]:
+        ax.set_visible(False)
+    for ax in axes[-1]:
         ax.set_xlabel("Mw")
+        ax.xaxis.set_tick_params(labelbottom=True)
     for ax in axes[:, 0]:
         ax.set_ylabel("events per year, magnitude >= Mw")
     a = z["seismic_anchor"]
     fig.text(0.01, 0.01, f"Black: observed rate of events above the anchor magnitude (Mw {a['magnitude']:g}, since {a['start_year']}). Grey: truncated G-R for the b-values of the logic tree, anchored there.\n"
-             "Dashed: observed rate above Mc in its complete period (from 2000; 1975 for Sumba); not used for the rates.", fontsize=plotting.NOTE, va="bottom")
-    fig.tight_layout(rect=(0, 0.08, 1, 1)); fig.savefig(path); plt.close(fig)
+             "Dashed: observed rate above Mc in its complete period (mc_start_year in zones.yaml); not used for the rates.", fontsize=plotting.NOTE, va="bottom")
+    fig.tight_layout(rect=(0, 0.16 / nrow, 1, 1)); fig.savefig(path); plt.close(fig)
 
 
 def main(zones):
@@ -59,7 +63,12 @@ def main(zones):
         cat = catalogue.load_catalogue(z, tri)
         par = catalogue.parameter_table(cat, z, cfg["tree"])
         seg = par[par.segment > 0]; whole = par[par.segment == 0].iloc[0]
-        rep.check(f"{zone}: events in the catalogue", "Whole catalogue is read", None,
+        allc = catalogue.load_catalogue(z, tri, keep_excluded=True); x = allc[allc.excluded != ""]
+        big = x[x.mw >= 6.0].sort_values("mw", ascending=False)
+        rep.check(f"{zone}: events removed by the catalogue filter", "zones.yaml catalogue_filter: interface events only, as far as location allows", None,
+                  ("; ".join(f"{k}: {v:,}" for k, v in x.excluded.value_counts().items()) + ". Removed events of Mw >= 6: " +
+                   ", ".join(f"{int(e.year)} Mw {e.mw:.1f} ({e.excluded})" for _, e in big.iterrows())) if len(x) else "no filter")
+        rep.check(f"{zone}: events in the catalogue", "Whole catalogue is read (after the filter)", None,
                   f"{len(cat):,} events, {cat.year.min()} to {cat.year.max()}, Mw {cat.mw.min():.2f} to {cat.mw.max():.2f}")
         rep.check(f"{zone}: distance from each event to the mesh", "Events are assigned to the segment of the nearest triangle; no depth filter is applied",
                   bool(cat.dist_km.max() < 50), f"median {cat.dist_km.median():.1f} km, largest {cat.dist_km.max():.1f} km")
@@ -110,4 +119,4 @@ def main(zones):
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main(sys.argv[1:] or ["sunda"]) else 1)
+    sys.exit(0 if main(sys.argv[1:] or ["sunda", "makran"]) else 1)

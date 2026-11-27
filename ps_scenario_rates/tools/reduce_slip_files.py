@@ -13,6 +13,9 @@ To be run where the slip files are. Needs only Python 3 and numpy; it does not n
     --label        name of the output file; default: the rigidity model, or "all"
     --slip         all (default): read every slip realisation and keep the mean slip on each triangle of a rupture geometry
                    (needed for rigidity models other than 00, decision 27); none: triangles only, first realisation read
+    --keep         the rupture fractions file (csv, or the zip that holds it, e.g. Rupture_fractions_v2.zip): slip files whose
+                   scenario is not listed there are skipped. Realisations removed from the scenario set (for example for
+                   unrealistic slip) then do not enter the mean slip. Without --keep every slip file found is read.
 
 A rupture geometry is rigidity model, magnitude, scaling law, scaling sample and initiation triangle; its slip realisations
 (the last number of the name) differ in slip, not in the area they cover. With --slip all the triangles of a geometry are
@@ -30,8 +33,11 @@ its named Mw. Areas are computed as the scenario generator does (vertices on one
 for mak) and mu is that of the rigidity model (00: 30 GPa; 01: the depth-dependent function with Fact_mu 0.5). The ratio
 should be 1 within about 1%; anything else means the files or the mesh are not the ones expected.
 """
+import csv
+import io
 import os
 import sys
+import zipfile
 import numpy as np
 
 TOL = 1e-4          # degrees / km: agreement required between a slip-file triangle and a mesh triangle
@@ -70,6 +76,28 @@ def parse(name):
     return int(p[2]), int(p[3]) * 10000 + int(p[4]), int(p[5]), int(p[6]), int(p[7])
 
 
+def kept_names(path, zone, rig_only=None):
+    """Scenario names listed in the rupture fractions file (first column), for one zone and, if given, one rigidity model.
+    path: a csv, or a zip whose csv members are searched."""
+    prefix = f"PS_{zone}_" + (f"{rig_only:02d}_" if rig_only is not None else "")
+    keep = set()
+
+    def read(fh):
+        for row in csv.reader(fh):
+            if row and row[0].startswith(prefix):
+                keep.add(row[0])
+    if path.lower().endswith(".zip"):
+        with zipfile.ZipFile(path) as z:
+            for n in z.namelist():
+                if n.lower().endswith(".csv"):
+                    with z.open(n) as f:
+                        read(io.TextIOWrapper(f, encoding="utf-8"))
+    else:
+        with open(path, newline="", encoding="utf-8") as f:
+            read(f)
+    return keep
+
+
 def main(argv):
     args, opt, i = [], {}, 0
     while i < len(argv):
@@ -97,11 +125,16 @@ def main(argv):
     for root, _, names in os.walk(folder):
         files += [os.path.join(root, n) for n in names if n.startswith(f"PS_{zone}_") and n.endswith(".dat")]
     files.sort()
-    groups = {}
+    keep = kept_names(opt["keep"], zone, rig_only) if "keep" in opt else None
+    if keep is not None:
+        print(f"--keep: {len(keep):,} scenarios of {zone} listed in {os.path.basename(opt['keep'])}", flush=True)
+    groups, skipped = {}, []
     for f in files:
         k = parse(os.path.basename(f)[:-4])
         if rig_only is not None and k[0] != rig_only:
             continue
+        if keep is not None and os.path.basename(f)[:-4] not in keep:
+            skipped.append(os.path.basename(f)[:-4]); continue
         if k not in groups:
             groups[k] = [f]
         elif want_slip:
@@ -141,6 +174,8 @@ def main(argv):
         q = np.quantile(ratio, [0.05, 0.5, 0.95]); ok = 0.98 < q[0] and q[2] < 1.02
         print(f"check: moment (mu x UTM-{utm} area x slip) / moment of the named Mw, {len(ratio):,} geometries: "
               f"5% {q[0]:.3f}, median {q[1]:.3f}, 95% {q[2]:.3f}: " + ("OK" if ok else "NOT within 2% of 1; check the files and the mesh"))
+    if keep is not None:
+        print(f"--keep: {len(skipped):,} slip files skipped (scenario not in the fractions file)" + (": " + ", ".join(skipped[:10]) + (" ..." if len(skipped) > 10 else "") if skipped else ""))
     if n_unmatched:
         print(f"WARNING: {n_unmatched:,} slip-file triangles were not found in the mesh (wrong mesh file?)")
     return 0

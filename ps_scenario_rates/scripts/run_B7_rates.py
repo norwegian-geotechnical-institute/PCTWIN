@@ -1,6 +1,6 @@
 """Step B7. Scenario rates: the mean over all branches, and what is needed to rebuild any branch.
 
-Run from ps_scenario_rates after steps B0 to B6:   python scripts/run_B7_rates.py [zone ...]     (default: sunda)
+Run from ps_scenario_rates after steps B0 to B6:   python scripts/run_B7_rates.py [zone ...]     (default: sunda makran)
 Writes products/B7_rates/ and checks/B7_rates/.
 
 Products per zone:
@@ -16,10 +16,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import pandas as pd
-from ptha_rates import PRODUCTS, __version__, binrates, config, rates
+from ptha_rates import PRODUCTS, __version__, binrates, config, inputs, rates
 from ptha_rates.report import CheckReport
 
-README = """# Scenario rates ({zone})
+README = """# Scenario rates
+
+Zones of this run: {zones}. Replace <zone> and <code> below by one of them.
 
 Version {version}. Annual rates of the PS scenarios on the {n_branch} branches of the logic tree, for the rigidity models
 listed in checks/B7_rates (decision 27). Scenarios of the other rigidity models have no rate in this run.
@@ -54,6 +56,7 @@ def main(zones):
     cfg = config.load()
     out = os.path.join(PRODUCTS, "B7_rates"); os.makedirs(out, exist_ok=True)
     rep = CheckReport("B7_rates", "scenario rates")
+    nb = {}
     for zone in zones:
         z = cfg["zones"][zone]
         D = rates.load(zone, cfg); t = D["table"]; w = t.weight.to_numpy(); pos = D["pos"]
@@ -79,7 +82,7 @@ def main(zones):
         kb = pos.bin.to_numpy()
         byb = np.bincount(kb, weights=PM["all"], minlength=len(bins))
         rep.check(f"{zone}: mean rate by magnitude", "Annual rate of events at or above a magnitude, from the scenario rates", None,
-                  "; ".join(f"Mw>={bins.mw_lower[k]:.2f}: " + (f"{byb[k:].sum():.2f} per yr" if byb[k:].sum() >= 1 else f"1 per {1 / byb[k:].sum():,.0f} yr") for k in (0, 5, 10, 16, 21, 26)))
+                  "; ".join(f"Mw>={bins.mw_lower[k]:.2f}: " + (f"{byb[k:].sum():.2f} per yr" if byb[k:].sum() >= 1 else f"1 per {1 / byb[k:].sum():,.0f} yr") for k in inputs.summary_bins(bins)))
         rep.check(f"{zone}: mean rate of all scenarios by group of branches", "Total annual rate of modelled events", None,
                   "; ".join(f"{g}: {v.sum():.2f} per yr" for g, v in PM.items()))
         i = int(np.argmax(sr)); nm = rates.scenario_names(z["code"], {k: scen[k][[i]] for k in ("rig", "mw", "scal", "sreal", "tri", "slip")})[0]
@@ -95,8 +98,10 @@ def main(zones):
         for g, v in PM.items():
             pp["rate_mean" if g == "all" else f"rate_mean_{g}"] = v
         pp.to_csv(os.path.join(out, f"position_rates_{zone}.csv"), index=False, float_format="%.6e")
-        with open(os.path.join(out, "README.md"), "w", encoding="utf-8") as f:
-            f.write(README.format(zone=zone, code=z["code"], n_branch=len(t), version=__version__))
+        nb[zone] = (z["code"], len(t))
+    with open(os.path.join(out, "README.md"), "w", encoding="utf-8") as f:
+        f.write(README.format(zone="<zone>", code="<code>", n_branch=" / ".join(f"{v[1]}" for v in nb.values()), version=__version__,
+                              zones=", ".join(f"{k} (code {v[0]})" for k, v in nb.items())))
     rep.note("Mean rates are weighted over the branches with the weights of the branch table. No Bayesian update is applied (decision 13).")
     rw = config.rigidity_in_use(cfg["tree"]); sk = config.skipped_rigidity(cfg["tree"])
     rep.note("Rigidity models in use, pooled with weights " + ", ".join(f"{k}: {v:g}" for k, v in rw.items()) + " (decision 27)."
@@ -105,4 +110,4 @@ def main(zones):
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main(sys.argv[1:] or ["sunda"]) else 1)
+    sys.exit(0 if main(sys.argv[1:] or ["sunda", "makran"]) else 1)

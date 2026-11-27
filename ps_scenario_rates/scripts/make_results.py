@@ -72,9 +72,14 @@ def zone_section(zone, cfg):
     L += ["Total rate of modelled events: " + "; ".join(f"{lab} branches {(Z[m].sum(1) * w[m]).sum() / w[m].sum():.2f} per year" for lab, m in (("seismic", ~geo), ("geodynamic", geo))) + ".", ""]
 
     PMs, PMg = rates.mean_position_rates(D, ~geo), rates.mean_position_rates(D, geo)
-    L += ["### Where the rate falls", "", "Events per year by segment, weighted mean. A rupture's rate is divided between segments by its segment fractions.", ""]
-    L += table(["Segment", "Seismic branches", "Geodynamic branches", f"Observed (Mw >= {par.anchor_mw.iloc[0]:g})"],
-               [[n, f"{(PMs * F[:, g]).sum():.3f}", f"{(PMg * F[:, g]).sum():.3f}", f"{par.rate_anchor_per_yr[n]:.3f}"] for g, n in enumerate(names)])
+    # compare at a bin edge: the edge at the anchor magnitude (Sunda: 6.34 for 6.35), or else the first edge above it (Makran: 6.34 for 6.0)
+    a_mw = par.anchor_mw.iloc[0]; a_y0 = int(par.anchor_start_year.iloc[0]); k0 = int(np.searchsorted(lo, a_mw - 0.02)); ab = (pos.bin.to_numpy() >= k0)
+    cat = pd.read_csv(P("B3_catalogue", f"catalogue_{zone}.csv")); yrs_a = cfg["zones"][zone]["catalogue_end_year"] - a_y0 + 1
+    obs_seg = [((cat.segment == g + 1) & (cat.mw >= max(a_mw, lo[k0])) & (cat.year >= a_y0)).sum() / yrs_a for g in range(n_seg)]
+    L += ["### Where the rate falls", "", f"Events per year of Mw >= {lo[k0]:.2f} by segment, weighted mean; observed since {a_y0}. "
+          "A rupture's rate is divided between segments by its segment fractions.", ""]
+    L += table(["Segment", "Seismic branches", "Geodynamic branches", f"Observed (Mw >= {max(a_mw, lo[k0]):.2f})"],
+               [[n, f"{(PMs * F[:, g])[ab].sum():.3f}", f"{(PMg * F[:, g])[ab].sum():.3f}", f"{obs_seg[g]:.3f}"] for g, n in enumerate(names)])
     L += [f"![Rate along the trench](figures/rate_along_trench_{zone}.png)", ""]
 
     mb = os.path.join(CHECKS, "B8_end_to_end", f"moment_balance_{zone}.csv")
@@ -117,4 +122,4 @@ def main(zones):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:] or ["sunda"]))
+    sys.exit(main(sys.argv[1:] or ["sunda", "makran"]))

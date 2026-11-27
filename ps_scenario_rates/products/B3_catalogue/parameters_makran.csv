@@ -1,0 +1,4 @@
+unit,segment,b_catalogue,anchor_mw,anchor_start_year,anchor_years,n_ge_anchor,rate_anchor_per_yr,mc,mc_start_year,years_complete,n_ge_mc,rate_mc_per_yr,n_events,largest_event_mw,mmax_observed,mmax_area_limit,mmax_mean,n_ge_7.5,n_ge_8,n_ge_8.5,n_ge_9
+whole_zone,0,0.87,6,1920,106,19,0.179245,4.5,1975,51,398,7.80392,1403,8.1,8.3,9.1,8.7,1,1,0,0
+East,1,0.67,6,1920,106,16,0.150943,4.3,1975,51,317,6.21569,659,8.1,8.3,8.8,8.55,1,1,0,0
+West,2,1.01,6,1920,106,3,0.0283019,4.5,1975,51,164,3.21569,744,6.2233,6.4233,8.6,7.51165,0,0,0,0

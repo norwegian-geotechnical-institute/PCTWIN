@@ -1,6 +1,6 @@
 """Step B1. Freeze the inputs into checked tables.
 
-Run from ps_scenario_rates:   python scripts/run_B1_inputs.py [zone ...]     (default: sunda)
+Run from ps_scenario_rates:   python scripts/run_B1_inputs.py [zone ...]     (default: sunda makran)
 Reads Data (never written to). Writes products/B1_inputs/ and checks/B1_inputs/.
 
 Products per zone:
@@ -35,7 +35,7 @@ def main(zones):
         s = inputs.add_bins_and_counts(s, bins, cfg["tree"]["event_tree"]["scaling_sample_00_counts_as_sample"])
         tri["segment"], n_near = inputs.segment_map(s, tri, n_seg)
         tri["segment_name"] = [z["segments"][k - 1]["name"] for k in tri.segment]
-        line = geometry.trench_line(tri, z["arc_centre"])
+        line = geometry.trench_line(tri, z["arc_centre"], n=z.get("trench_bins", 400))
         tri["along_trench_km"] = geometry.along_trench(tri.lon, tri.lat, line)
 
         # ---- checks
@@ -116,4 +116,4 @@ def main(zones):
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main(sys.argv[1:] or ["sunda"]) else 1)
+    sys.exit(0 if main(sys.argv[1:] or ["sunda", "makran"]) else 1)

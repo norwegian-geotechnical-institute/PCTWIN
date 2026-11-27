@@ -1,6 +1,6 @@
 """Step B5. Share of each bin's rate among rupture positions, unconstrained branches.
 
-Run from ps_scenario_rates after steps B1 to B3:   python scripts/run_B5_shares.py [zone ...]     (default: sunda)
+Run from ps_scenario_rates after steps B1 to B3:   python scripts/run_B5_shares.py [zone ...]     (default: sunda makran)
 Writes products/B5_shares/ and checks/B5_shares/.
 
 Products per zone:
@@ -43,6 +43,11 @@ def main(zones):
                 rep.check(f"{zone}: footprint files hold slip", f"Rigidity model(s) {need} are placed by moment under the footprint (decision 27)",
                           shares.footprint_files_have_slip(cfg, zone), "run tools/reduce_slip_files.py with --slip all")
             fp = shares.get_footprints(cfg, zone, tri, pos, bins, scen)
+            if "n_slip_ignored" in fp:
+                rep.check(f"{zone}: footprints whose mean slip includes removed realisations",
+                          "Their slip file lists more realisations than the scenario table keeps; the slip is not used and the triangles are "
+                          "weighted by rigidity x area only (rerun tools/reduce_slip_files.py with --keep to avoid it)", None,
+                          f"{int(fp['n_slip_ignored']):,} rupture geometries")
             footprints.save(shares.footprint_path(zone), fp)
             tv = shares.triangle_values(load, par.reset_index(), bud.reset_index(), names)
             ratio = shares.mu_ratio(cfg, zone, tri, np.unique(pos.rig))
@@ -108,4 +113,4 @@ def main(zones):
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main(sys.argv[1:] or ["sunda"]) else 1)
+    sys.exit(0 if main(sys.argv[1:] or ["sunda", "makran"]) else 1)

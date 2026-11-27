@@ -122,3 +122,10 @@ def segment_map(s, tri, n_seg):
         j = np.where(have)[0][np.argmin(((lon[have] - lon[i]) * np.cos(np.deg2rad(lat[i]))) ** 2 + (lat[have] - lat[i]) ** 2)]
         out[i] = out[j]
     return out, int((~have).sum())
+
+
+def summary_bins(bins, magnitudes=(0.0, 7.2, 7.6, 8.0, 8.5, 9.0, 9.25)):
+    """Indices of the bins whose lower edge is the first at or above each magnitude, for short summaries of
+    rates above a magnitude (works for any number of bins)."""
+    lo = bins.mw_lower.to_numpy()
+    return sorted({int(min(np.searchsorted(lo, m - 1e-9), len(lo) - 1)) for m in magnitudes})

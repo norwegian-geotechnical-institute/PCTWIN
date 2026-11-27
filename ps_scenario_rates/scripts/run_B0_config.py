@@ -1,6 +1,6 @@
 """Step B0. Validate the configuration, write the branch table and draw the logic tree.
 
-Run from ps_scenario_rates:   python scripts/run_B0_config.py [zone ...]     (default: sunda)
+Run from ps_scenario_rates:   python scripts/run_B0_config.py [zone ...]     (default: sunda makran)
 Writes products/B0_config/ and checks/B0_config/.
 """
 import os
@@ -62,4 +62,4 @@ def main(zones):
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main(sys.argv[1:] or ["sunda"]) else 1)
+    sys.exit(0 if main(sys.argv[1:] or ["sunda", "makran"]) else 1)

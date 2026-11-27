@@ -1,27 +1,28 @@
 # PS scenario rates: guide
 
-Version 1.1 (22 November 2026). Sunda done. Makran not yet done.
+Version 1.2 (27 November 2026). Sunda and Makran done.
 
 This guide explains the method, the steps, the decisions and the open points. The numbers and figures of the run are in
 [`results.md`](results.md), which the run writes itself. The inputs are in `config/`.
 
 ## 1. Introduction
 
-This folder computes the annual rate of every scenario, on every branch of a logic tree that carries the uncertainty in how often earthquakes of each magnitude occur and where. Version 1.0 followed the WP1 meeting of 11 and 12 November 2026; this run (version 1.1) follows the meeting of 20 November 2026. The choices are simplified (quite a lot, I would say) , below is the list of main features that are in this run:
+This folder computes the annual rate of every scenario, on every branch of a logic tree that carries the uncertainty in how often earthquakes of each magnitude occur and where. Version 1.0 followed the WP1 meeting of 11 and 12 November 2026; version 1.1 follows the meeting of 20 November 2026, and this run (version 1.2) adds Makran, treated like Sunda. The choices are simplified (quite a lot, I would say) , below is the list of main features that are in this run:
 
 | | In this run |
 |---|---|
-| Zone | Sunda megathrust, five segments: Arakan, Aceh-Andaman, Sumatra, Java, Sumba |
-| Scenarios | Rigidity models 00 (homogeneous, 30 GPa) and 01 (depth-dependent), pooled 0.4 / 0.6. Model 01 needs the slip files, so it runs only on Dipankar's side (`tools/README.md`); here the 2,075,771 scenarios of 00 take all the weight. |
-| Magnitudes | 31 bins, Dipankar's magnitude intervals, Mw 6.34 to 9.52 |
-| Branches | 240 (180 geodynamic, 60 seismic) |
+| Zones | Sunda megathrust, five segments: Arakan, Aceh-Andaman, Sumatra, Java, Sumba. Makran, two segments: East, West |
+| Scenarios | Rigidity models 00 (homogeneous, 30 GPa) and 01 (depth-dependent), pooled 0.4 / 0.6. Model 01 needs the slip files, so it runs only on Dipankar's side (`tools/README.md`); here the scenarios of 00 take all the weight (Sunda 2,075,771; Makran 520,881). |
+| Magnitudes | Dipankar's magnitude intervals: Sunda 31 bins, Mw 6.34 to 9.52; Makran 18 bins, Mw 5.70 to 9.08 |
+| Branches | 240 per zone (180 geodynamic, 60 seismic) |
 | Weights | Set at the meeting of 20 November. No Bayesian update yet (must needed later). |
 
 The placement of the rates within a segment at triangle-level through rupture footprints, as an optional setting (end of section 5); it is off by default and needed for rigidity model 01.
 
 ## 2. Computing hazard from the rates
 
-For computing hazard, the tables in `products/` are enough; the input data are not needed.
+For computing hazard, the tables in `products/` are enough; the input data are not needed. The examples are for Sunda;
+for Makran, write `makran` for `sunda` and `mak` for `sun`. The two zones are independent sources: add their exceedance rates at a POI.
 
 **Mean hazard curve.** Use the mean rate of each scenario over all branches:
 
@@ -118,6 +119,8 @@ Each scenario then receives its position's rate times its split.
 
 ![Logic tree](figures/logic_tree_sunda.png)
 
+The tree is the same for Makran (`figures/logic_tree_makran.png`).
+
 Six levels: rate source, segmentation, MFD form, b-value, Mmax and, on the geodynamic branches, coupling. The weight of a
 branch is the product of the weights of its alternatives. Rigidity model and scaling law (Strasser et al. 2010;
 Thingbaijam et al. 2017) are pooled inside each bin and are not branches. The scaling law or the scaling samples can be made
@@ -171,12 +174,16 @@ See [`results.md`](results.md): the configuration used, the moment budget, model
 rate of the zone, where the rate falls along the trench, the consistency checks and the figures. It is rewritten by every
 run (`scripts/make_results.py`), so it always matches the products.
 
-How to read it: the seismic branches match the record at moderate magnitudes by construction. The geodynamic branches are
+How to read it (Sunda): the seismic branches match the record at moderate magnitudes by construction. The geodynamic branches are
 an independent estimate. Their weighted mean gives about twice the observed rate of Mw 6.35 and larger, and agrees with the
 record from about Mw 7.5 up. The excess comes from the budget itself (preferred coupling), the high b-values (on a fixed
 budget they put many more events at small magnitudes, so the mean curve is steeper than b = 0.86), the high coupling level,
 the cut of the tapered tail (B4) and, in quiet segments, the "largest observed" Mmax. A Bayesian update against the record
 would down-weight the branches responsible.
+
+Makran: the geodynamic branches give about ten times the observed number of Mw 7.5 and larger events, and many more
+moderate events, mostly because the budget (coupling x convergence over the whole mesh) is about twelve times the moment
+released since 1920, and because the low Mmax alternatives of West push its budget into moderate events (section 9).
 
 ## 7. Sensitivity to coupling
 
@@ -195,7 +202,7 @@ tests listed at its top, and their tables and figures appear at the end of `resu
 
 ## 8. Decisions
 
-The main choices behind version 1.1, taken by Himanshu and open to review by the group. The numbers are those quoted in
+The main choices behind versions 1.1 and 1.2, taken by Himanshu and open to review by the group. The numbers are those quoted in
 the code and the configuration; earlier and minor decisions are in the version 1.0 guide (tag `v1.0`).
 
 | # | Topic | Decision |
@@ -212,11 +219,16 @@ the code and the configuration; earlier and minor decisions are in the version 1
 | 4, 28 | Scaling law and samples | Pooled inside the bin, not branches; either can be made a level (`event_tree: as_level`) |
 | 13 | Weight updating | Product of the level weights; no Bayesian update yet |
 | 29 | Triangle areas in the budget | Dipankar's areas (ANTI-FASc: one UTM projection, zone 46), the areas his scenarios' slip was set with, so the budget and the named moments match. Larger than the true areas in the east: Java +8%, Sumba +19%, whole zone +4% |
+| 30 | Makran, treated like Sunda | Same logic tree, weights, b-values, coupling rule, tail treatment and rigidity pooling. Segments East (seg_1) and West (seg_2), as in Dipankar's shape files |
+| 31 | Makran values | Coupling: preferred = middle of the ranges in the deliverable draft (East 0.6-1.0, West 0.2-0.6), so East 0.4 / 0.8 / 1.3 and West 0.2 / 0.4 / 0.8; convergence East 30, West 27 mm/yr; area Mmax whole zone 9.1 (above the top bin edge, 9.08: cut there and the budget balanced, as for Sunda), East 8.8, West 8.6; b as in Table 1 |
+| 32 | Makran catalogue | Interface events only, as far as location allows (no focal mechanisms): events west of 57.3 E (Zagros transition) or more than 25 km from the mesh are dropped, and the 2013 Balochistan sequence (strike-slip) and the 2011 Dalbandin event (intraslab) are removed by name (`catalogue_filter` in `zones.yaml`) |
+| 33 | Makran seismic anchor | Observed rate of Mw >= 6.0 since 1920 (19 events; about the same rate counted from 1964), not Mw 6.35: only 4 interface events are that large |
 
 ## 9. Next steps
 
-- **Makran.** The code takes any zone listed in `config/zones.yaml`. Makran needs its mesh as a text file, a
-  catalogue, and the coupling and Mmax values that are still empty there. Then `python scripts/run_all.py makran`.
+- **Makran: geodynamic against seismic.** With these couplings the geodynamic branches give about ten times the observed
+  number of Mw >= 7.5 events in 119 years, and the seismic branches imply a coupling of about 0.1. Worth a look at the
+  coupling of Makran, or a job for the Bayesian update.
 - **Run with rigidity model 01 and compute the hazard curves** (Dipankar, where the slip files are): reduce the slip files,
   set `footprints: from_file`, run, check, then hazard curves from `products/B7_rates/` (steps in `tools/README.md`; hazard curves as in section 2).
 - **Penalty on boundary-crossing ruptures.**
@@ -232,6 +244,7 @@ version is a tag in the repository. Raise it whenever the rates change.
 |---|---|---|
 | 1.0 | 15 November 2026 | Sunda, first run: homogeneous rigidity model, 480 branches, decisions 1 to 21 |
 | 1.1 | 22 November 2026 | Dipankar's bins, new b-values, Mmax, coupling and weights; rigidity 01 ready for the slip files; Dipankar's triangle areas in the budget; 240 branches; decisions 22 to 29 |
+| 1.2 | 27 November 2026 | Makran added (240 branches; rigidity 01 runs with Dipankar's footprints); Sunda rates unchanged; decisions 30 to 33 |
 
 To change an input: edit `config/`, run `python scripts/run_all.py`, add a row to the decisions in section 8 and to this
 table, raise `VERSION`, commit and tag.

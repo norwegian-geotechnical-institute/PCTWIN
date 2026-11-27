@@ -88,7 +88,11 @@ def from_file(folder, zone_code, scen, tri, n_pos, mu_of=None):
     scen: the scenario table of step B1 (rig, mw, scal, sreal, tri, position, split).
     When the files hold slip (tools/reduce_slip_files.py --slip all) and mu_of is given, frac is the moment fraction of
     each triangle, mu x area x mean slip (decision 27); otherwise the area fraction. mu_of(rig, rows) returns the rigidity
-    of the triangles in the given rows of tri for rigidity model rig (int)."""
+    of the triangles in the given rows of tri for rigidity model rig (int).
+    A geometry whose file lists more slip realisations (n_real) than the scenario table keeps (realisations removed from the
+    scenario set, e.g. for unrealistic slip) has a mean slip that includes the removed ones and cannot be corrected from the
+    file: its slip is not used and its triangles are weighted by mu x area only. Their number is returned as n_slip_ignored.
+    Files made with tools/reduce_slip_files.py --keep have no such geometry."""
     files = sorted(glob.glob(os.path.join(folder, f"footprints_{zone_code}_*.npz")))
     if not files:
         raise FileNotFoundError(f"no footprints_{zone_code}_*.npz in {folder}; see data/README.md")
@@ -96,7 +100,10 @@ def from_file(folder, zone_code, scen, tri, n_pos, mu_of=None):
     k_scen = key(scen["rig"], scen["mw"], scen["scal"], scen["sreal"], scen["tri"])
     o = np.argsort(k_scen, kind="stable"); ks = k_scen[o]
     w_geo_pos = np.add.reduceat(scen["split"][o], np.flatnonzero(np.r_[True, np.diff(ks) > 0]))     # weight of each geometry in its position
-    k_u = ks[np.r_[True, np.diff(ks) > 0]]; pos_u = scen["position"][o][np.r_[True, np.diff(ks) > 0]]
+    first = np.r_[True, np.diff(ks) > 0]
+    k_u = ks[first]; pos_u = scen["position"][o][first]
+    n_kept = np.diff(np.r_[np.flatnonzero(first), len(ks)])         # realisations of each geometry in the scenario table
+    n_ignored = 0
     row_of = np.full(int(tri.id.max()) + 1, -1); row_of[tri.id.to_numpy()] = np.arange(len(tri)); area = tri.area_km2.to_numpy()
     C, W = [], []; seen = np.zeros(len(k_u), bool)
     for f in files:
@@ -119,7 +126,10 @@ def from_file(folder, zone_code, scen, tri, n_pos, mu_of=None):
             e = np.repeat(ip[gs] - np.r_[0, np.cumsum(n[gs])[:-1]], n[gs]) + np.arange(n[gs].sum())   # entry rows of these geometries
             t = row_of[d["triangle"][e]]; a = area[t]
             if "slip" in d and mu_of is not None:                    # moment = mu x area x mean slip (decision 27)
-                a = a * d["slip"][e]
+                use = np.ones(len(gs), bool)
+                if "n_real" in d:                                    # slip that includes removed realisations is not used
+                    use = d["n_real"][gs] <= n_kept[j[gs]]; n_ignored += int((~use).sum())
+                a = a * np.where(np.repeat(use, n[gs]), d["slip"][e], 1.0)
                 rig_e = d["rig"][geo]
                 for r in np.unique(rig_e):
                     m = rig_e == r
@@ -134,7 +144,7 @@ def from_file(folder, zone_code, scen, tri, n_pos, mu_of=None):
     u, inv = np.unique(np.concatenate(C), return_inverse=True); frac = np.bincount(inv, weights=np.concatenate(W))   # merge the chunks
     p_u, t_u = u // len(tri), u % len(tri)
     return dict(indptr=np.r_[0, np.cumsum(np.bincount(p_u, minlength=n_pos))], index=t_u.astype(np.int16 if len(tri) < 32768 else np.int32),
-                frac=frac.astype(np.float32))
+                frac=frac.astype(np.float32), n_slip_ignored=np.int64(n_ignored))
 
 
 def save(path, fp):

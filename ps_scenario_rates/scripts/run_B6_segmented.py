@@ -1,6 +1,6 @@
 """Step B6. Shares for the segmented branches, with boundary-crossing ruptures.
 
-Run from ps_scenario_rates after step B5:   python scripts/run_B6_segmented.py [zone ...]     (default: sunda)
+Run from ps_scenario_rates after step B5:   python scripts/run_B6_segmented.py [zone ...]     (default: sunda makran)
 Writes products/B6_segmented/ and checks/B6_segmented/.
 
 Product per zone:
@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import pandas as pd
-from ptha_rates import PRODUCTS, config, footprints, shares
+from ptha_rates import PRODUCTS, config, footprints, inputs, shares
 from ptha_rates.report import CheckReport
 
 
@@ -54,9 +54,10 @@ def main(zones):
         tp = np.column_stack([np.bincount(cell, weights=Xp[:, g], minlength=ncell) for g in range(n_seg)])
         rep.check(f"{zone}: a crossing penalty keeps every segment's rate", "Shares are normalised after the penalty, so a penalty moves rate from crossing to non-crossing ruptures without losing any",
                   bool(np.all(np.isclose(tp, 1) | np.isclose(tp, 0)) and (Xp[~single].sum() < X0[~single].sum())), f"tested with penalty 0.5; penalty in use: {pen}")
-        cross_share = np.array([[(X0[(pos.bin == k).to_numpy() & ~single, g]).sum() / max(X0[(pos.bin == k).to_numpy(), g].sum(), 1e-300) for g in range(n_seg)] for k in (0, 10, 16, 30)])
+        kk = sorted({0, *inputs.summary_bins(bins, (7.6, 8.5)), len(bins) - 1})
+        cross_share = np.array([[(X0[(pos.bin == k).to_numpy() & ~single, g]).sum() / max(X0[(pos.bin == k).to_numpy(), g].sum(), 1e-300) for g in range(n_seg)] for k in kk])
         rep.check(f"{zone}: part of a segment's rate taken by boundary-crossing ruptures", "Rises with magnitude; at the largest magnitudes most ruptures cross a boundary", None,
-                  "; ".join(f"Mw {bins.mw_centre[k]:g}: " + ", ".join(f"{n} {100 * c:.0f}%" for n, c in zip(names, row)) for k, row in zip((0, 10, 16, 30), cross_share)))
+                  "; ".join(f"Mw {bins.mw_centre[k]:g}: " + ", ".join(f"{n} {100 * c:.0f}%" for n, c in zip(names, row)) for k, row in zip(kk, cross_share)))
         np.savez_compressed(os.path.join(out, f"shares_segmented_{zone}.npz"), share_segmented=X, segments=np.array(names), position=pos.position.to_numpy())
     if cfg["tree"]["options"]["footprints"] == "segment_fraction_approximation":
         rep.note("In the first run the loading and the seismicity density are constant inside a segment, so they cancel from these shares: "
@@ -68,4 +69,4 @@ def main(zones):
 
 
 if __name__ == "__main__":
-    sys.exit(0 if main(sys.argv[1:] or ["sunda"]) else 1)
+    sys.exit(0 if main(sys.argv[1:] or ["sunda", "makran"]) else 1)

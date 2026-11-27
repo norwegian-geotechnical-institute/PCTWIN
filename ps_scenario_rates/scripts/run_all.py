@@ -1,6 +1,6 @@
 """Run the unit tests, every step in order and the sensitivity tests; refresh docs/figures and docs/results.md.
 
-Run from ps_scenario_rates:   python scripts/run_all.py [zone ...]     (default: sunda)
+Run from ps_scenario_rates:   python scripts/run_all.py [zone ...]     (default: sunda makran)
 Stops at the first step that fails a check. Step B1 is skipped when the rupture fractions file is not in the data
 folder and its tables are already in products/B1_inputs. For a fresh start, run scripts/clean.py first.
 """
@@ -53,4 +53,4 @@ def main(zones):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:] or ["sunda"]))
+    sys.exit(main(sys.argv[1:] or ["sunda", "makran"]))

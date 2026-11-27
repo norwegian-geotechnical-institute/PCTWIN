@@ -9,11 +9,14 @@ KM_PER_DEG = 111.19
 THRESHOLDS = [7.5, 8.0, 8.5, 9.0]
 
 
-def load_catalogue(zone_cfg, tri):
+def load_catalogue(zone_cfg, tri, keep_excluded=False):
     """Catalogue with the segment of each event (segment of the nearest triangle) and the
-    distance to that triangle in km."""
+    distance to that triangle in km. Events removed by the zone's catalogue_filter are dropped, or kept
+    with the reason in column 'excluded' if keep_excluded."""
     c = pd.read_csv(os.path.join(DATA, zone_cfg["catalogue"]))
-    c = c.rename(columns={"YEAR": "year", "LAT": "lat", "LON": "lon", "DEPTH": "depth_km", "Unified_Mw": "mw"})
+    c = c.rename(columns={"YEAR": "year", "MONTH": "month", "DAY": "day", "LAT": "lat", "LON": "lon", "DEPTH": "depth_km",
+                          "Unified_Mw": "mw", "Mw": "mw"})
+    c = c[(c.mw > 0) & (c.year <= zone_cfg["catalogue_end_year"])].reset_index(drop=True)   # rows without a magnitude (Makran: Mw blank or 0)
     tlon, tlat = tri.lon.to_numpy()[None], tri.lat.to_numpy()[None]
     j, d = np.empty(len(c), int), np.empty(len(c))
     for i in range(0, len(c), 2000):
@@ -22,7 +25,27 @@ def load_catalogue(zone_cfg, tri):
         j[i:i + 2000], d[i:i + 2000] = dd.argmin(1), dd.min(1)
     c["segment"] = tri.segment.to_numpy()[j]
     c["dist_km"] = d
-    return c[["year", "lat", "lon", "depth_km", "mw", "segment", "dist_km"]]
+    c["excluded"] = excluded(c, zone_cfg.get("catalogue_filter"))
+    cols = ["year", "lat", "lon", "depth_km", "mw", "segment", "dist_km"]
+    return c[cols + ["excluded"]] if keep_excluded else c[c.excluded == ""][cols].reset_index(drop=True)
+
+
+def excluded(c, flt):
+    """Events removed by the zone's catalogue_filter (zones.yaml), with the reason. The filter keeps interface
+    events only, as far as location allows: no focal mechanisms are in the catalogue."""
+    why = pd.Series("", index=c.index)
+    if not flt:
+        return why
+    if flt.get("lon_min") is not None:
+        why[c.lon < flt["lon_min"]] = f"west of {flt['lon_min']} E"
+    if flt.get("max_dist_km") is not None:
+        why[(why == "") & (c.dist_km > flt["max_dist_km"])] = f"more than {flt['max_dist_km']} km from the mesh"
+    for e in flt.get("exclude", []):
+        t = c.year * 10000 + c.month * 100 + c.day
+        m = (t >= int(e["from"].replace("-", ""))) & (t <= int(e["to"].replace("-", ""))) & \
+            (np.hypot(c.lat - e["lat"], c.lon - e["lon"]) <= e["radius_deg"]) & (c.mw >= e.get("mw_min", 0))
+        why[(why == "") & m] = e["name"]
+    return why
 
 
 def units(zone_cfg):
